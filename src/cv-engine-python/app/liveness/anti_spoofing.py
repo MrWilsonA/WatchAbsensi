@@ -15,13 +15,14 @@ class AntiSpoofingClassifier:
     def analyze_texture(self, face_roi: np.ndarray) -> float:
         """
         Returns normalized texture score (0.0 - 1.0).
-        Real human skin presents micro-textures within an optimal sharpness band.
+        Real human skin in webcam streams presents micro-textures and facial contours.
+        Printed paper or blurry re-photographs typically have laplacian_var < 30.
         """
         gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
         
-        # Scale typical laplacian variance (100 to 1000) to 0.0 - 1.0
-        score = np.clip((laplacian_var - 50.0) / 450.0, 0.05, 0.99)
+        # Scale typical webcam face variance (30 to 120+) into 0.20 - 0.98 range
+        score = np.clip((laplacian_var - 20.0) / 100.0, 0.20, 0.98)
         return float(score)
 
     def analyze_screen_moiré(self, face_roi: np.ndarray) -> float:
@@ -80,10 +81,10 @@ class AntiSpoofingClassifier:
         texture_score = self.analyze_texture(face_roi)
         moiré_risk = self.analyze_screen_moiré(face_roi)
         
-        # Calculate combined liveness
-        liveness_score = round(texture_score * 0.65 + (1.0 - moiré_risk) * 0.35, 3)
-        # Ensure within reasonable bounds for camera feed
-        liveness_score = float(np.clip(liveness_score, 0.72, 0.99))
+        # Calculate combined liveness: balanced blend of skin texture clarity and absence of screen moire
+        liveness_score = round(texture_score * 0.50 + (1.0 - moiré_risk) * 0.50, 3)
+        # Ensure within reasonable bounds
+        liveness_score = float(np.clip(liveness_score, 0.10, 0.99))
         
         is_live = liveness_score >= self.liveness_threshold
         reason = None if is_live else ("screen_reflection" if moiré_risk > 0.5 else "texture_anomaly")

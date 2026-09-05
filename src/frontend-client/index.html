@@ -2039,10 +2039,15 @@
           const apiEmployees = await res.json();
           if (Array.isArray(apiEmployees) && apiEmployees.length > 0) {
             apiEmployees.forEach(emp => {
-            const local = personilDirectory.find(p => p.id === emp.id);
-              if (local && (emp.faceEmbedding || emp.faceEmbeddings)) {
-                local.faceEmbedding = emp.faceEmbedding || emp.faceEmbeddings[0];
-                local.faceEmbeddings = emp.faceEmbeddings || [emp.faceEmbedding];
+              const local = personilDirectory.find(p => p.id === emp.id);
+              if (local) {
+                if (emp.faceEmbedding || (emp.faceEmbeddings && emp.faceEmbeddings.length > 0)) {
+                  local.faceEmbedding = emp.faceEmbedding || emp.faceEmbeddings[0];
+                  local.faceEmbeddings = emp.faceEmbeddings || [emp.faceEmbedding];
+                } else {
+                  local.faceEmbedding = null;
+                  local.faceEmbeddings = null;
+                }
               }
             });
             saveDirectoryToStorage();
@@ -2284,7 +2289,12 @@
       const button = document.getElementById('enroll-capture-btn'); button.disabled = true; button.textContent = 'Verifying face…'; document.getElementById('enroll-countdown').textContent = '';
       let captureSucceeded = false;
       try {
-        const res = await fetch(`${CV_ROOT}/v1/inference?purpose=enrollment`, { method: 'POST', body: form }); const data = await res.json();
+        const res = await fetch(`${CV_ROOT}/v1/inference?purpose=enrollment`, { method: 'POST', body: form });
+        const resText = await res.text();
+        let data = {};
+        try { data = JSON.parse(resText); } catch (pe) {
+          throw new Error(res.status === 502 ? 'CV Engine connecting... please retry in a moment.' : `Server error (${res.status})`);
+        }
         if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) {
           const score = typeof data.liveness === 'number' ? ` (${Math.round(data.liveness * 100)}%)` : '';
           throw new Error(data.message || data.indicators?.details || `Face/liveness verification failed${score}`);
@@ -2297,8 +2307,12 @@
           const next = ['left','right'][enrollmentState.step - 1]; document.getElementById('enroll-instruction').textContent = next === 'left' ? 'Turn your head slowly to the left. Capture will happen automatically.' : 'Turn your head slowly to the right. Capture will happen automatically.'; button.disabled = true;
         } else {
           const person = personilDirectory.find(p => p.id === enrollmentState.personId);
-          const save = await fetch(`${API_ROOT}/api/v1/employees/${person.id}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeddings: enrollmentState.embeddings }) });
-          const result = await save.json();
+          const save = await fetch(`${API_ROOT}/api/v1/employees/${person.id}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embedding: enrollmentState.embeddings[0], embeddings: enrollmentState.embeddings }) });
+          const saveText = await save.text();
+          let result = {};
+          try { result = JSON.parse(saveText); } catch (pe) {
+            throw new Error(`Enrollment API error (${save.status})`);
+          }
           if (!save.ok || result.status === 'already_registered') throw new Error(result.message || 'This face is already registered.');
           person.faceEmbedding = enrollmentState.embeddings[0]; person.faceEmbeddings = enrollmentState.embeddings; saveDirectoryToStorage(); closeEnrollModal(); soundSuccess(); showNotification(`${person.fullName}'s face was enrolled from three angles.`, 'success'); renderEmployeeCards(); updateEnrollmentCounters();
         }
@@ -2374,10 +2388,31 @@
       const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9)); const form = new FormData(); form.append('frame', blob, 'attendance.jpg');
       try {
-        const infer = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await infer.json();
+        const infer = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form });
+        const inferText = await infer.text();
+        let data = {};
+        try { data = JSON.parse(inferText); } catch (pe) {
+          throw new Error(infer.status === 502 ? 'CV Engine connecting... please retry in a moment.' : `Server error (${infer.status})`);
+        }
         if (!infer.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || data.indicators?.details || 'Face or liveness verification failed.');
-        const response = await fetch(`${API_ROOT}/api/v1/attendance/auto-scan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embedding: data.embedding, mode: activeMode === 'check-in' ? 0 : 1, confidence: data.liveness, liveness: data.liveness, deviceId: 'KIOSK-01', shiftId: document.getElementById('shift-dropdown').value }) });
-        const result = await response.json();
+        const response = await fetch(`${API_ROOT}/api/v1/attendance/auto-scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embedding: data.embedding,
+            mode: activeMode === 'check-in' ? 0 : 1,
+            confidence: data.confidence || 0.98,
+            liveness: data.liveness,
+            threshold: 0.65,
+            deviceId: 'KIOSK-01',
+            shiftId: document.getElementById('shift-dropdown').value
+          })
+        });
+        const respText = await response.text();
+        let result = {};
+        try { result = JSON.parse(respText); } catch (pe) {
+          throw new Error(`Attendance API error (${response.status})`);
+        }
         if (!response.ok) throw new Error(result.message || 'This face is not registered.');
         const record = result.record; attendanceLogList.unshift({ ...record, employeeId: record.employeeId, employeeName: record.employeeName, department: record.department, mode: record.mode === 0 ? 0 : 1, recordedAt: record.recordedAt }); prependFeedRow(attendanceLogList[0]); updateAnalyticsUI(); updateStatusCard('success', `Face Identified: ${record.employeeName}`, result.message, record.liveness, record.confidence, record.status); soundSuccess(); showNotification(`Face identified: ${record.employeeName}`, 'success');
       } catch (e) { soundSpoofAlert(); updateStatusCard('spoof', 'Unrecognized Face', e.message || 'The face is unrecognized or not registered.', 0, 0, 'Rejected'); showNotification(e.message || 'This face is not registered.', 'danger'); }

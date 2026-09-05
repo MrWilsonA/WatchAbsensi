@@ -28,7 +28,7 @@ public interface IAntiDoubleTapService
 public interface IBiometricService
 {
     double CalculateCosineSimilarity(float[] vectorA, float[] vectorB);
-    (Employee? Employee, double Similarity) FindBestMatch(float[] queryEmbedding, double threshold = 0.75);
+    (Employee? Employee, double Similarity) FindBestMatch(float[] queryEmbedding, double threshold = 0.65);
 }
 
 public record AttendanceSubmission(
@@ -81,7 +81,7 @@ public class BiometricService : IBiometricService
         return dotProduct / (Math.Sqrt(normA) * Math.Sqrt(normB));
     }
 
-    public (Employee? Employee, double Similarity) FindBestMatch(float[] queryEmbedding, double threshold = 0.75)
+    public (Employee? Employee, double Similarity) FindBestMatch(float[] queryEmbedding, double threshold = 0.65)
     {
         Employee? bestEmployee = null;
         double bestSimilarity = 0.0;

@@ -100,7 +100,7 @@ app.MapPost("/api/v1/employees/{id}/enroll", (string id, EnrollFaceRequest req, 
             var similarity = new BiometricService(store).CalculateCosineSimilarity(incoming, existing);
             if (similarity >= duplicateThreshold)
             {
-                return Results.Conflict(new { success = false, status = "already_registered", message = $"Wajah ini sudah terdaftar sebagai {other.FullName}.", existingEmployeeId = other.Id, existingEmployeeName = other.FullName, similarity = Math.Round(similarity, 4) });
+                return Results.Conflict(new { success = false, status = "already_registered", message = $"This face is already registered as {other.FullName}.", existingEmployeeId = other.Id, existingEmployeeName = other.FullName, similarity = Math.Round(similarity, 4) });
             }
         }
     }
@@ -171,9 +171,9 @@ app.MapPost("/api/v1/attendance", async (
     IHubContext<AttendanceHub> hub) =>
 {
     // 1. Biometric & Liveness Verification Check
-    if (submission.Liveness < 0.75 || submission.Confidence < 0.75)
+    if (submission.Liveness < 0.70 || submission.Confidence < 0.75)
     {
-        var spoofReason = submission.Liveness < 0.75 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence;
+        var spoofReason = submission.Liveness < 0.70 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence;
         var spoofLog = new SpoofLog(
             Id: Guid.NewGuid(),
             RecordedAt: DateTimeOffset.UtcNow,
@@ -292,7 +292,7 @@ app.MapPost("/api/v1/attendance/verify", (BiometricVerifyRequest req, IBiometric
         return Results.BadRequest(new { message = "Vector embedding must be 512 dimensions." });
     }
 
-    var (matchedEmployee, similarity) = biometricService.FindBestMatch(req.Embedding, req.Threshold ?? 0.75);
+    var (matchedEmployee, similarity) = biometricService.FindBestMatch(req.Embedding, req.Threshold ?? 0.65);
     if (matchedEmployee is null)
     {
         return Results.Ok(new
@@ -325,7 +325,7 @@ app.MapPost("/api/v1/attendance/auto-scan", async (
         return Results.BadRequest(new { success = false, status = "invalid_vector", message = "Biometric vector embedding must be 512 dimensions." });
 
     // 1. Biometric threshold check
-    if (scan.Liveness < 0.75 || scan.Confidence < 0.75)
+    if (scan.Liveness < 0.70 || scan.Confidence < 0.75)
     {
         var spoofLog = new SpoofLog(
             Id: Guid.NewGuid(),
@@ -333,7 +333,7 @@ app.MapPost("/api/v1/attendance/auto-scan", async (
             DeviceId: scan.DeviceId,
             Liveness: scan.Liveness,
             Confidence: scan.Confidence,
-            Reason: scan.Liveness < 0.75 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence,
+            Reason: scan.Liveness < 0.70 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence,
             Details: "Liveness score below safety threshold (Spoofing attempt detected)",
             CandidateEmployeeId: null
         );
@@ -343,7 +343,7 @@ app.MapPost("/api/v1/attendance/auto-scan", async (
     }
 
     // 2. Identify person from enrolled embeddings
-    var (matchedEmployee, similarity) = biometricService.FindBestMatch(scan.Embedding, scan.Threshold ?? 0.75);
+    var (matchedEmployee, similarity) = biometricService.FindBestMatch(scan.Embedding, scan.Threshold ?? 0.65);
     if (matchedEmployee == null)
     {
         return Results.NotFound(new {
