@@ -14,9 +14,13 @@ services:
     build: {context: ./src/cv-engine-python, dockerfile: ../../docker/cv-engine/Dockerfile}
     ports: ["8002:8002"]
     depends_on: [postgres-db, redis]
+  dotnet-api:
+    build: {context: ./src/backend-dotnet, dockerfile: ../../docker/dotnet-api/Dockerfile}
+    ports: ["5000:8080"]
+    depends_on: [postgres-db, redis, cv-engine]
   frontend:
     image: nginx:alpine
     ports: ["3000:80"]
     volumes: ["./src/frontend-client:/usr/share/nginx/html:ro"]
-    depends_on: [cv-engine]
+    depends_on: [cv-engine, dotnet-api]
 volumes: {pgdata: {}}
