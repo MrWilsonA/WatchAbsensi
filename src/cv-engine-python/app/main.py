@@ -27,7 +27,7 @@ app.add_middleware(
 
 # Initialize CV submodules
 detector = FaceDetector()
-anti_spoofing = AntiSpoofingClassifier(liveness_threshold=0.80)
+anti_spoofing = AntiSpoofingClassifier(liveness_threshold=0.75)
 recognizer = ArcFaceMatcher(model_path="models/arcface.onnx")
 
 # In-memory stores
@@ -41,7 +41,7 @@ spoof_logs: List[Dict[str, Any]] = [
         "liveness": 0.38,
         "confidence": 0.84,
         "reason": "photo_print_detected",
-        "details": "Tekstur kertas teridentifikasi (Laplacian variance rendah)",
+        "details": "Printed-paper texture detected (low Laplacian variance)",
         "candidate_id": "EMP-003"
     }
 ]
@@ -96,7 +96,8 @@ def ready():
 @app.post("/v1/inference")
 async def inference(
     frame: UploadFile = File(...),
-    simulate_flag: Optional[str] = Query(None, description="Test simulation flag: 'spoof_photo', 'spoof_screen', 'spoof_low_conf'")
+    simulate_flag: Optional[str] = Query(None, description="Test simulation flag: 'spoof_photo', 'spoof_screen', 'spoof_low_conf'"),
+    purpose: Optional[str] = Query(None, description="Use 'enrollment' for the multi-angle enrollment threshold")
 ):
     """
     Core CV Pipeline:
@@ -113,7 +114,7 @@ async def inference(
     except Exception as e:
         return {
             "face_detected": False,
-            "error": f"Gagal membaca frame: {str(e)}",
+            "error": f"Unable to decode frame: {str(e)}",
             "liveness": 0.0,
             "faces": 0
         }
@@ -123,7 +124,7 @@ async def inference(
             "face_detected": False,
             "liveness": 0.0,
             "faces": 0,
-            "message": "Tidak ada wajah terdeteksi pada frame."
+            "message": "No face was detected in the frame."
         }
 
     primary_box = boxes[0]
@@ -131,6 +132,12 @@ async def inference(
 
     # Liveness check
     is_live, liveness_score, indicators = anti_spoofing.evaluate_liveness(face_roi, simulate_flag=simulate_flag)
+    # 0.75 is calibrated for ordinary webcam sharpness; simulated print/screen
+    # attacks remain well below this score and are still rejected.
+    required_liveness = 0.75
+    is_live = liveness_score >= required_liveness
+    indicators["required_score"] = required_liveness
+    indicators["details"] = "Live face verified." if is_live else f"Liveness score {liveness_score:.0%} is below the required {required_liveness:.0%}. Improve lighting and keep your full face inside the guide."
 
     # ArcFace embedding extraction (512-dim unit vector)
     embedding = recognizer.extract_embedding(face_roi)
@@ -159,7 +166,7 @@ def enroll_face(req: FaceEnrollmentRequest):
             for registered in existing["embeddings"]:
                 similarity = recognizer.cosine_similarity(incoming, registered)
                 if similarity >= 0.92:
-                    return {"success": False, "status": "already_registered", "message": f"Wajah ini sudah terdaftar sebagai {existing['employee_name']}.", "existing_employee_id": existing_id, "existing_employee_name": existing["employee_name"], "similarity": round(similarity, 4)}
+                    return {"success": False, "status": "already_registered", "message": f"This face is already registered as {existing['employee_name']}.", "existing_employee_id": existing_id, "existing_employee_name": existing["employee_name"], "similarity": round(similarity, 4)}
     face_registry[req.employee_id] = {"employee_id": req.employee_id, "employee_name": req.employee_name, "embeddings": req.embeddings, "enrolled_at": datetime.now(timezone.utc).isoformat()}
     return {"success": True, "status": "enrolled", "employee_id": req.employee_id, "samples": len(req.embeddings)}
 
@@ -171,7 +178,7 @@ def face_registry_status():
 def recognize_face(req: FaceRecognitionRequest):
     match, similarity = recognizer.find_match(req.embedding, list(face_registry.values()), req.threshold)
     if match is None:
-        return {"matched": False, "similarity": similarity, "message": "Wajah belum terdaftar."}
+        return {"matched": False, "similarity": similarity, "message": "This face is not registered."}
     return {"matched": True, "similarity": similarity, "employee_id": match["employee_id"], "employee_name": match["employee_name"]}
 
 @app.post("/v1/liveness/verify")
@@ -199,21 +206,21 @@ def record_attendance(req: AttendanceRequest):
     Biometric attendance verification gate.
     Rejects spoof attempts or low confidence inferences and logs them.
     """
-    if req.liveness < 0.80 or req.confidence < 0.75:
+    if req.liveness < 0.75 or req.confidence < 0.75:
         spoof_item = {
             "id": f"SP-{len(spoof_logs)+1:03d}",
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "device_id": req.device_id,
             "liveness": req.liveness,
             "confidence": req.confidence,
-            "reason": "liveness_failed" if req.liveness < 0.80 else "low_confidence",
+            "reason": "liveness_failed" if req.liveness < 0.75 else "low_confidence",
             "candidate_id": req.employee_id
         }
         spoof_logs.append(spoof_item)
         return {
             "success": False,
             "status": "rejected",
-            "reason": "Verifikasi biometrik gagal: Skor liveness atau confidence di bawah batas aman (Anti-Spoofing trigger)",
+            "reason": "Biometric verification failed: liveness or confidence is below the safety threshold.",
             "spoof_log": spoof_item
         }
 

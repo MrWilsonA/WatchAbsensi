@@ -25,7 +25,7 @@ class FaceDetector:
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
-            raise ValueError("Gagal mendecode frame gambar.")
+            raise ValueError("Unable to decode the image frame.")
         return img
 
     def detect_faces(self, image_bytes: bytes) -> Tuple[bool, List[Dict[str, Any]], np.ndarray]:

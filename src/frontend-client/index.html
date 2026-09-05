@@ -2247,7 +2247,7 @@
         const video = document.getElementById('enroll-video'); video.srcObject = enrollmentState.stream; await video.play();
         scheduleEnrollmentCapture(2);
       } catch (e) {
-        closeEnrollModal(); showNotification('Camera tidak tersedia. Enrollment membutuhkan kamera aktif.', 'danger');
+        closeEnrollModal(); showNotification('Camera unavailable. Face enrollment requires camera access.', 'danger');
       }
     }
 
@@ -2284,7 +2284,7 @@
       const button = document.getElementById('enroll-capture-btn'); button.disabled = true; button.textContent = 'Verifying face…'; document.getElementById('enroll-countdown').textContent = '';
       let captureSucceeded = false;
       try {
-        const res = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await res.json();
+        const res = await fetch(`${CV_ROOT}/v1/inference?purpose=enrollment`, { method: 'POST', body: form }); const data = await res.json();
         if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) {
           const score = typeof data.liveness === 'number' ? ` (${Math.round(data.liveness * 100)}%)` : '';
           throw new Error(data.message || data.indicators?.details || `Face/liveness verification failed${score}`);
@@ -2299,10 +2299,10 @@
           const person = personilDirectory.find(p => p.id === enrollmentState.personId);
           const save = await fetch(`${API_ROOT}/api/v1/employees/${person.id}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeddings: enrollmentState.embeddings }) });
           const result = await save.json();
-          if (!save.ok || result.status === 'already_registered') throw new Error(result.message || 'Wajah sudah terdaftar');
-          person.faceEmbedding = enrollmentState.embeddings[0]; person.faceEmbeddings = enrollmentState.embeddings; saveDirectoryToStorage(); closeEnrollModal(); soundSuccess(); showNotification(`Face ${person.fullName} berhasil didaftarkan dari 3 sudut.`, 'success'); renderEmployeeCards(); updateEnrollmentCounters();
+          if (!save.ok || result.status === 'already_registered') throw new Error(result.message || 'This face is already registered.');
+          person.faceEmbedding = enrollmentState.embeddings[0]; person.faceEmbeddings = enrollmentState.embeddings; saveDirectoryToStorage(); closeEnrollModal(); soundSuccess(); showNotification(`${person.fullName}'s face was enrolled from three angles.`, 'success'); renderEmployeeCards(); updateEnrollmentCounters();
         }
-      } catch (e) { showNotification(e.message || 'Enrollment gagal. Coba lagi dengan pencahayaan cukup.', 'danger'); }
+      } catch (e) { showNotification(e.message || 'Enrollment failed. Improve the lighting and try again.', 'danger'); }
       enrollmentState.busy = false;
       if (enrollmentState.step < 3) { button.disabled = true; scheduleEnrollmentCapture(captureSucceeded ? 3 : 2); }
     }
@@ -2370,17 +2370,17 @@
       }
 
       const video = document.getElementById('video');
-      if (!video.videoWidth) { showNotification('Aktifkan kamera lalu coba Auto-Detect Face.', 'warning'); return; }
+      if (!video.videoWidth) { showNotification('Activate the camera, then select Auto-Detect Face.', 'warning'); return; }
       const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9)); const form = new FormData(); form.append('frame', blob, 'attendance.jpg');
       try {
         const infer = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await infer.json();
-        if (!infer.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || 'Wajah atau liveness tidak valid.');
+        if (!infer.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || data.indicators?.details || 'Face or liveness verification failed.');
         const response = await fetch(`${API_ROOT}/api/v1/attendance/auto-scan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embedding: data.embedding, mode: activeMode === 'check-in' ? 0 : 1, confidence: data.liveness, liveness: data.liveness, deviceId: 'KIOSK-01', shiftId: document.getElementById('shift-dropdown').value }) });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Wajah belum terdaftar.');
+        if (!response.ok) throw new Error(result.message || 'This face is not registered.');
         const record = result.record; attendanceLogList.unshift({ ...record, employeeId: record.employeeId, employeeName: record.employeeName, department: record.department, mode: record.mode === 0 ? 0 : 1, recordedAt: record.recordedAt }); prependFeedRow(attendanceLogList[0]); updateAnalyticsUI(); updateStatusCard('success', `Face Identified: ${record.employeeName}`, result.message, record.liveness, record.confidence, record.status); soundSuccess(); showNotification(`Face identified: ${record.employeeName}`, 'success');
-      } catch (e) { soundSpoofAlert(); updateStatusCard('spoof', 'Unrecognized Face', e.message || 'Wajah tidak dikenali atau belum terdaftar.', 0, 0, 'Rejected'); showNotification(e.message || 'Wajah belum terdaftar.', 'danger'); }
+      } catch (e) { soundSpoofAlert(); updateStatusCard('spoof', 'Unrecognized Face', e.message || 'The face is unrecognized or not registered.', 0, 0, 'Rejected'); showNotification(e.message || 'This face is not registered.', 'danger'); }
     }
 
     // Test scanning a specific person's face

@@ -171,9 +171,9 @@ app.MapPost("/api/v1/attendance", async (
     IHubContext<AttendanceHub> hub) =>
 {
     // 1. Biometric & Liveness Verification Check
-    if (submission.Liveness < 0.80 || submission.Confidence < 0.75)
+    if (submission.Liveness < 0.75 || submission.Confidence < 0.75)
     {
-        var spoofReason = submission.Liveness < 0.80 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence;
+        var spoofReason = submission.Liveness < 0.75 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence;
         var spoofLog = new SpoofLog(
             Id: Guid.NewGuid(),
             RecordedAt: DateTimeOffset.UtcNow,
@@ -325,7 +325,7 @@ app.MapPost("/api/v1/attendance/auto-scan", async (
         return Results.BadRequest(new { success = false, status = "invalid_vector", message = "Biometric vector embedding must be 512 dimensions." });
 
     // 1. Biometric threshold check
-    if (scan.Liveness < 0.80 || scan.Confidence < 0.75)
+    if (scan.Liveness < 0.75 || scan.Confidence < 0.75)
     {
         var spoofLog = new SpoofLog(
             Id: Guid.NewGuid(),
@@ -333,7 +333,7 @@ app.MapPost("/api/v1/attendance/auto-scan", async (
             DeviceId: scan.DeviceId,
             Liveness: scan.Liveness,
             Confidence: scan.Confidence,
-            Reason: scan.Liveness < 0.80 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence,
+            Reason: scan.Liveness < 0.75 ? SpoofReason.TextureAnomaly : SpoofReason.LowConfidence,
             Details: "Liveness score below safety threshold (Spoofing attempt detected)",
             CandidateEmployeeId: null
         );

@@ -57,21 +57,21 @@ class AntiSpoofingClassifier:
         if simulate_flag == "spoof_photo":
             return False, 0.38, {
                 "reason": "photo_print_detected",
-                "details": "Tekstur cetakan kertas teridentifikasi (Laplacian variance rendah)",
+                "details": "Printed-paper texture detected (low Laplacian variance).",
                 "texture_score": 0.22,
                 "moiré_score": 0.10
             }
         elif simulate_flag == "spoof_screen":
             return False, 0.42, {
                 "reason": "screen_reflection",
-                "details": "Pola moiré / pantulan piksel layar gadget terdeteksi",
+                "details": "Display moire or screen-pixel reflection detected.",
                 "texture_score": 0.65,
                 "moiré_score": 0.89
             }
         elif simulate_flag == "spoof_low_conf":
             return False, 0.55, {
                 "reason": "low_confidence",
-                "details": "Pencahayaan redup atau wajah terhalang sebagian",
+                "details": "Low lighting or a partially obstructed face was detected.",
                 "texture_score": 0.45,
                 "moiré_score": 0.20
             }
@@ -92,7 +92,7 @@ class AntiSpoofingClassifier:
             "texture_score": round(texture_score, 3),
             "moiré_risk": round(moiré_risk, 3),
             "reason": reason,
-            "details": "Wajah biologis valid terverifikasi" if is_live else "Pola liveness tidak memenuhi ambang batas aman"
+            "details": "Live face verified." if is_live else "The liveness pattern did not meet the safety threshold."
         }
 
         return is_live, liveness_score, indicators
