@@ -43,7 +43,10 @@ class AntiSpoofingClassifier:
         
         high_freq_peak = np.max(magnitude_spectrum)
         # Normalized peak check
-        if high_freq_peak > 180:
+        # A normal webcam frame can contain strong edges from hair, shelves, or
+        # room lighting. 180 was too aggressive and classified those edges as
+        # screen moiré. Require a stronger periodic peak before blocking.
+        if high_freq_peak > 220:
             return 0.85 # High moire pattern risk
         return 0.15 # Natural spectrum
 

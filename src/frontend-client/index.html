@@ -2285,7 +2285,10 @@
       let captureSucceeded = false;
       try {
         const res = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await res.json();
-        if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || 'Face/liveness verification failed');
+        if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) {
+          const score = typeof data.liveness === 'number' ? ` (${Math.round(data.liveness * 100)}%)` : '';
+          throw new Error(data.message || data.indicators?.details || `Face/liveness verification failed${score}`);
+        }
         enrollmentState.embeddings.push(data.embedding);
         enrollmentState.step += 1;
         captureSucceeded = true;
