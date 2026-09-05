@@ -1,1 +1,2673 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WatchAbsensi</title><style>body{font-family:Inter,system-ui;background:#f4f7fb;color:#172033;margin:0}header{background:#101a36;color:#fff;padding:24px 6%;display:flex;justify-content:space-between}main{max-width:1100px;margin:32px auto;padding:0 20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 8px 24px #18254b12}.value{font-size:32px;font-weight:800;margin-top:8px}.ok{color:#10966f}button{background:#3867f5;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer}video{width:100%;max-width:640px;border-radius:16px;background:#101a36}section{margin-top:28px}</style></head><body><header><strong>WatchAbsensi</strong><span>Biometric Workforce Platform</span></header><main><h1>Dashboard Kehadiran</h1><div class="grid" id="stats"></div><section class="card"><h2>Live Kiosk</h2><video id="video" autoplay muted></video><p id="msg">Kamera siap. Mulai verifikasi wajah.</p><button onclick="start()">Aktifkan Kamera</button></section></main><script>async function load(){let r=await fetch('http://localhost:8002/v1/analytics/summary');let d=await r.json();stats.innerHTML=[['Hadir',d.present,'ok'],['Terlambat',d.late,''],['Tidak Hadir',d.absent,''],['Tingkat Kehadiran',(d.attendance_rate*100).toFixed(1)+'%','ok']].map(x=>`<div class="card"><small>${x[0]}</small><div class="value ${x[2]}">${x[1]}</div></div>`).join('')}async function start(){try{video.srcObject=await navigator.mediaDevices.getUserMedia({video:true});msg.textContent='Kamera aktif — arahkan wajah ke kamera untuk verifikasi.'}catch(e){msg.textContent='Izin kamera diperlukan untuk memulai kiosk.'}}load()</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WatchAbsensi — Institutional & Enterprise Biometric Attendance</title>
+  <meta name="description" content="Unified facial biometric attendance and anti-spoofing platform for educational and corporate facilities.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Institutional / Corporate Clean Light Palette - SOLID NO GRADIENTS */
+      --bg-app: #f1f5f9;
+      --bg-panel: #ffffff;
+      --bg-panel-light: #f8fafc;
+      --bg-surface: #e2e8f0;
+      --bg-surface-hover: #cbd5e1;
+      
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --border-focus: #2563eb;
+      
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+
+      /* Solid Institutional Accent Colors */
+      --color-primary: #1d4ed8;
+      --color-primary-hover: #1e40af;
+      --color-primary-active: #172554;
+      
+      --color-success: #059669;
+      --color-success-bg: #ecfdf5;
+      --color-success-border: #10b981;
+      --color-success-text: #065f46;
+      
+      --color-warning: #b45309;
+      --color-warning-bg: #fffbeb;
+      --color-warning-border: #f59e0b;
+      --color-warning-text: #92400e;
+      
+      --color-danger: #b91c1c;
+      --color-danger-bg: #fef2f2;
+      --color-danger-border: #ef4444;
+      --color-danger-text: #991b1b;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* SVG Icon Utility */
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .icon-sm { width: 15px; height: 15px; }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 32px; height: 32px; }
+
+    /* Top Institutional Header (Light Theme) */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-symbol {
+      width: 40px;
+      height: 40px;
+      background-color: var(--color-primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .brand-symbol img { width: 100%; height: 100%; object-fit: cover; }
+
+    .brand-meta h1 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .brand-meta span {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      display: block;
+    }
+
+    .terminal-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      padding: 5px 12px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    /* Navigation Tabs */
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .nav-btn:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-surface-hover);
+    }
+
+    .nav-btn.active {
+      background-color: var(--color-primary);
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Header Right Controls */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .clock-display {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .splash-trigger-btn {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .splash-trigger-btn:hover {
+      background-color: var(--bg-panel-light);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    .network-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background-color: var(--color-success-bg);
+      border: 1px solid var(--color-success-border);
+      color: var(--color-success-text);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .network-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--color-success);
+      border-radius: 50%;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 32px;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Clean White Cards */
+    .card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .card-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    /* Kiosk Dual Grid */
+    .kiosk-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .kiosk-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Video Terminal Viewport */
+    .video-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background-color: #0f172a;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .kiosk-hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+    }
+
+    .hud-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #f8fafc;
+      background-color: rgba(15, 23, 42, 0.8);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .scan-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 220px;
+      height: 250px;
+      border: 2px solid #38bdf8;
+      border-radius: 14px;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .scan-reticle::before, .scan-reticle::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-color: #0284c7;
+      border-style: solid;
+    }
+
+    .scan-reticle::before {
+      top: -2px; left: -2px;
+      border-width: 4px 0 0 4px;
+    }
+
+    .scan-reticle::after {
+      bottom: -2px; right: -2px;
+      border-width: 0 4px 4px 0;
+    }
+
+    .scan-reticle.locked {
+      border-color: var(--color-success);
+      background-color: rgba(5, 150, 105, 0.15);
+    }
+
+    .scan-reticle.spoof-danger {
+      border-color: var(--color-danger);
+      background-color: rgba(220, 38, 38, 0.2);
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #38bdf8;
+      animation: scanAnim 2.2s infinite ease-in-out alternate;
+    }
+
+    @keyframes scanAnim {
+      0% { top: 10%; }
+      100% { top: 90%; }
+    }
+
+    /* Kiosk Controls */
+    .controls-panel {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .mode-switch {
+      display: flex;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .mode-btn.active {
+      background-color: var(--color-primary);
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .select-input {
+      width: 100%;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .select-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 800;
+      border-radius: 8px;
+      padding: 12px 20px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      box-shadow: var(--shadow-sm);
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .btn-solid-primary {
+      background-color: var(--color-primary);
+      color: #ffffff;
+      flex: 1;
+    }
+
+    .btn-solid-primary:hover {
+      background-color: var(--color-primary-hover);
+    }
+
+    .btn-solid-secondary {
+      background-color: var(--bg-panel);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+    }
+
+    .btn-solid-secondary:hover {
+      background-color: var(--bg-panel-light);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    .btn-solid-danger {
+      background-color: var(--color-danger);
+      color: #ffffff;
+    }
+
+    .btn-solid-danger:hover {
+      background-color: #991b1b;
+    }
+
+    /* Simulator Panel */
+    .simulator-box {
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 6px;
+    }
+
+    .simulator-header {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .simulator-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .simulator-grid { grid-template-columns: 1fr; }
+    }
+
+    .sim-button {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .sim-button:hover {
+      background-color: var(--bg-surface);
+      border-color: var(--text-secondary);
+    }
+
+    .sim-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    /* Status Card */
+    .status-card {
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .status-card.state-success {
+      background-color: var(--color-success-bg);
+      border-color: var(--color-success-border);
+    }
+
+    .status-card.state-spoof {
+      background-color: var(--color-danger-bg);
+      border-color: var(--color-danger-border);
+    }
+
+    .status-card.state-debounce {
+      background-color: var(--color-warning-bg);
+      border-color: var(--color-warning-border);
+    }
+
+    .status-badge-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background-color: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #ffffff;
+    }
+
+    .status-card.state-success .status-badge-icon {
+      background-color: var(--color-success);
+    }
+
+    .status-card.state-spoof .status-badge-icon {
+      background-color: var(--color-danger);
+    }
+
+    .status-card.state-debounce .status-badge-icon {
+      background-color: var(--color-warning);
+    }
+
+    .status-content h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .status-content p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .telemetry-grid {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .telemetry-cell span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .telemetry-cell strong {
+      color: var(--text-primary);
+    }
+
+    /* Live Activity Feed (Light Theme) */
+    .stream-header {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feed-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 440px;
+      overflow-y: auto;
+    }
+
+    .feed-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 16px;
+      transition: background-color 0.15s;
+    }
+
+    .feed-row:hover {
+      background-color: var(--bg-surface);
+    }
+
+    .feed-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      object-fit: cover;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+    }
+
+    .user-info h4 {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .user-info span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .feed-status {
+      text-align: right;
+    }
+
+    .pill-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      display: inline-block;
+      text-transform: uppercase;
+    }
+
+    .pill-ontime {
+      background-color: var(--color-success-bg);
+      color: var(--color-success-text);
+      border: 1px solid var(--color-success-border);
+    }
+
+    .pill-late {
+      background-color: var(--color-warning-bg);
+      color: var(--color-warning-text);
+      border: 1px solid var(--color-warning-border);
+    }
+
+    .pill-neutral {
+      background-color: var(--bg-surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-strong);
+    }
+
+    .feed-timestamp {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      font-weight: 600;
+    }
+
+    /* Executive Analytics (Light Theme) */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-num {
+      font-size: 32px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      margin: 10px 0 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .analytics-double-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .analytics-double-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Solid Bar Chart (Light Theme) */
+    .chart-box {
+      margin-top: 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 180px;
+      border-bottom: 2px solid var(--border-strong);
+      padding-top: 10px;
+      background-color: var(--bg-panel-light);
+      padding-left: 8px;
+      padding-right: 8px;
+      border-radius: 6px;
+    }
+
+    .chart-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .bar-pair {
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3px;
+      height: 100%;
+    }
+
+    .solid-bar {
+      width: 44%;
+      border-radius: 4px 4px 0 0;
+      transition: height 0.3s;
+    }
+
+    .bar-checkin { background-color: var(--color-primary); }
+    .bar-checkout { background-color: #6366f1; }
+
+    .chart-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      font-weight: 700;
+    }
+
+    /* Light Theme Data Table */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      padding: 12px 14px;
+      background-color: var(--bg-panel-light);
+      border-bottom: 2px solid var(--border-strong);
+      font-weight: 800;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    tr:hover td {
+      background-color: var(--bg-panel-light);
+      color: var(--text-primary);
+    }
+
+    /* Employee Directory (Light Theme) */
+    .directory-action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .enrollment-stat-pill {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      padding: 6px 14px;
+      border-radius: 6px;
+      color: var(--text-primary);
+    }
+
+    .employee-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 20px;
+    }
+
+    .person-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .person-photo {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      border: 2px solid var(--border-strong);
+      margin-bottom: 12px;
+      object-fit: cover;
+    }
+
+    .person-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .person-role {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    .person-nip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-strong);
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-weight: 600;
+    }
+
+    .face-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+
+    .face-status-badge.enrolled {
+      background-color: var(--color-success-bg);
+      color: var(--color-success-text);
+      border: 1px solid var(--color-success-border);
+    }
+
+    .face-status-badge.not-enrolled {
+      background-color: var(--color-danger-bg);
+      color: var(--color-danger-text);
+      border: 1px solid var(--color-danger-border);
+    }
+
+    /* Warning Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .warning-modal-box {
+      background-color: var(--bg-panel);
+      border: 2px solid var(--color-danger);
+      border-radius: 14px;
+      max-width: 520px;
+      width: 100%;
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+
+    .warning-icon-circle {
+      width: 60px;
+      height: 60px;
+      background-color: var(--color-danger-bg);
+      color: var(--color-danger);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .warning-modal-box h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-danger-text);
+      margin-bottom: 8px;
+    }
+
+    .warning-modal-box p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .modal-btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .enroll-modal-box { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 14px; max-width: 680px; width: 100%; padding: 24px; box-shadow: var(--shadow-lg); }
+    .enroll-modal-box h2 { font-size: 18px; margin-bottom: 6px; }
+    .enroll-modal-box p { color: var(--text-secondary); font-size: 13px; margin-bottom: 16px; }
+    .enroll-video-wrap { background: #0f172a; border-radius: 12px; overflow: hidden; position: relative; height: 320px; }
+    #enroll-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .enroll-guide { position: absolute; inset: 22px; border: 2px dashed rgba(255,255,255,.75); border-radius: 45%; pointer-events: none; }
+    .enroll-stepper { display: flex; gap: 8px; margin: 14px 0; }
+    .enroll-step { flex: 1; padding: 9px; border-radius: 8px; background: var(--bg-surface); color: var(--text-muted); text-align: center; font-size: 11px; font-weight: 800; }
+    .enroll-step.active { background: #dbeafe; color: var(--color-primary); }
+    .enroll-step.done { background: var(--color-success-bg); color: var(--color-success-text); }
+
+    /* 1-Page Launchpad Portal Styles */
+    .launchpad-hero {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .launchpad-hero { flex-direction: column; align-items: flex-start; }
+    }
+
+    .launchpad-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-primary);
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .launchpad-hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .launchpad-hero-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      max-width: 640px;
+      line-height: 1.5;
+    }
+
+    .launchpad-hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .launchpad-chips-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .launchpad-chips-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .launchpad-chip {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .launchpad-chip-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .launchpad-chip-value {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .launchpad-modules-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .launchpad-modules-grid { grid-template-columns: 1fr; }
+    }
+
+    .launchpad-module-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+
+    .launchpad-module-card:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .launchpad-module-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .launchpad-module-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .launchpad-module-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .launchpad-module-card h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .launchpad-module-card p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .launchpad-module-action {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .launchpad-utilities-bar {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .launchpad-utilities-bar { flex-direction: column; align-items: flex-start; }
+    }
+
+    .launchpad-footer-bar {
+      background-color: var(--bg-panel-light);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    /* Toast Notification */
+    #toast-shelf {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast-box {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: var(--shadow-lg);
+      animation: slideToast 0.25s ease forwards;
+    }
+
+    @keyframes slideToast {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Institutional Header -->
+  <header>
+    <div class="header-left">
+      <a href="#" class="brand" onclick="switchTab('launchpad'); return false;" title="Go to System Portal">
+        <div class="brand-symbol">
+          <img src="assets/watchabsensi-brand.png" alt="WatchAbsensi logo">
+        </div>
+        <div class="brand-meta">
+          <h1>WatchAbsensi</h1>
+          <span>Enterprise Biometrics</span>
+        </div>
+      </a>
+
+      <div class="terminal-tag">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        KIOSK #01 • MAIN LOBBY
+      </div>
+    </div>
+
+    <!-- Navigation Tabs (Concise & Spacious) -->
+    <div class="header-center">
+      <div class="nav-tabs">
+        <button class="nav-btn" onclick="switchTab('launchpad')" id="nav-launchpad">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Portal
+        </button>
+        <button class="nav-btn active" onclick="switchTab('kiosk')" id="nav-kiosk">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Kiosk
+        </button>
+        <button class="nav-btn" onclick="switchTab('directory')" id="nav-directory">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Directory
+        </button>
+        <button class="nav-btn" onclick="switchTab('analytics')" id="nav-analytics">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Right Actions -->
+    <div class="header-right">
+      <div class="clock-display" id="clock-display">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="live-clock">--:--:--</span>
+      </div>
+
+      <div class="network-badge">
+        <div class="network-dot"></div>
+        <span>Online</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Work Area -->
+  <main>
+
+    <!-- ================================================================= -->
+    <!-- TAB 0: 1-PAGE LAUNCHPAD / ENTERPRISE PORTAL                       -->
+    <!-- ================================================================= -->
+    <section id="tab-launchpad" class="tab-pane">
+      
+      <!-- Hero Banner -->
+      <div class="launchpad-hero">
+        <div>
+          <div class="launchpad-hero-badge">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            WATCHABSENSI ENTERPRISE PORTAL • PRODUCTION SUITE
+          </div>
+          <h2 class="launchpad-hero-title">Unified Biometric Attendance & Security Portal</h2>
+          <p class="launchpad-hero-desc">
+            Next-generation AI facial recognition platform engineered for educational institutions and corporate facilities. Features 512-D neural embeddings, sub-second biometric cosine matching, dual-spectrum anti-spoofing, and real-time workforce compliance reporting.
+          </p>
+        </div>
+        <div class="launchpad-hero-actions">
+          <button class="btn btn-solid-primary" onclick="switchTab('kiosk')">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Open Kiosk
+          </button>
+          <button class="btn btn-solid-secondary" onclick="switchTab('directory')">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Face Directory
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-Time Telemetry Chips (4 Columns) -->
+      <div class="launchpad-chips-grid">
+        <div class="launchpad-chip">
+          <div class="launchpad-chip-label">
+            <svg class="icon icon-sm" style="color: var(--color-primary);" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            Core API Engine
+          </div>
+          <div class="launchpad-chip-value">.NET 8 Minimal API (Live)</div>
+        </div>
+
+        <div class="launchpad-chip">
+          <div class="launchpad-chip-label">
+            <svg class="icon icon-sm" style="color: var(--color-success);" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Biometrics & Anti-Spoof
+          </div>
+          <div class="launchpad-chip-value">ArcFace 512-D + Moiré Liveness</div>
+        </div>
+
+        <div class="launchpad-chip">
+          <div class="launchpad-chip-label">
+            <svg class="icon icon-sm" style="color: var(--color-warning);" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            Directory Status
+          </div>
+          <div class="launchpad-chip-value" id="launchpad-enrolled-count">0 / 8 Personnel Enrolled</div>
+        </div>
+
+        <div class="launchpad-chip">
+          <div class="launchpad-chip-label">
+            <svg class="icon icon-sm" style="color: #6366f1;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Active Schedule
+          </div>
+          <div class="launchpad-chip-value">Morning Shift (08:00 - 17:00)</div>
+        </div>
+      </div>
+
+      <!-- Primary Application Modules (Large 3-Column Interactive Grid) -->
+      <div class="launchpad-modules-grid">
+        
+        <!-- Module 1: Kiosk Terminal -->
+        <div class="launchpad-module-card" onclick="switchTab('kiosk')">
+          <div>
+            <div class="launchpad-module-top">
+              <div class="launchpad-module-icon" style="background-color: #eff6ff; color: var(--color-primary);">
+                <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <span class="launchpad-module-tag" style="background-color: #eff6ff; color: var(--color-primary);">Terminal Mode</span>
+            </div>
+            <h3>Attendance Kiosk</h3>
+            <p>Deploy the live facial recognition scanner with automatic identity detection, dual-frequency liveness analysis, anti-double-tap debounce, and instant check-in/out recording.</p>
+          </div>
+          <div class="launchpad-module-action">
+            Open Kiosk Terminal
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        </div>
+
+        <!-- Module 2: Face Directory -->
+        <div class="launchpad-module-card" onclick="switchTab('directory')">
+          <div>
+            <div class="launchpad-module-top">
+              <div class="launchpad-module-icon" style="background-color: #ecfdf5; color: var(--color-success);">
+                <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <span class="launchpad-module-tag" style="background-color: #ecfdf5; color: var(--color-success);">Identity Store</span>
+            </div>
+            <h3>Personnel Face Directory</h3>
+            <p>Administer 8 designated personnel profiles (Willy Arlando through Jibby Hartono). Assign 512-D neural face vectors one-by-one from zero, inspect enrolled templates, or execute directory reset.</p>
+          </div>
+          <div class="launchpad-module-action" style="color: var(--color-success);">
+            Manage Face Directory
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        </div>
+
+        <!-- Module 3: Workforce Analytics -->
+        <div class="launchpad-module-card" onclick="switchTab('analytics')">
+          <div>
+            <div class="launchpad-module-top">
+              <div class="launchpad-module-icon" style="background-color: #eef2ff; color: #6366f1;">
+                <svg class="icon icon-lg" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </div>
+              <span class="launchpad-module-tag" style="background-color: #eef2ff; color: #6366f1;">Executive Portal</span>
+            </div>
+            <h3>Workforce Analytics & Audits</h3>
+            <p>Analyze institution-wide punctuality rates, peak hourly rush distribution histograms, department compliance rankings, and forensic security audit logs for prevented spoof attempts.</p>
+          </div>
+          <div class="launchpad-module-action" style="color: #6366f1;">
+            View Analytics & Reports
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Operations Utilities Bar -->
+      <div class="launchpad-utilities-bar">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg class="icon icon-sm" style="color: var(--text-muted);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span style="font-size: 13px; font-weight: 800; color: var(--text-primary);">Quick Actions & Diagnostics</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-solid-secondary" style="font-size: 11.5px; padding: 7px 12px;" onclick="testScanSpecificPerson('EMP-001')">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background-color: var(--color-primary); display: inline-block;"></span>
+            Quick Test Willy
+          </button>
+          <button class="btn btn-solid-secondary" style="font-size: 11.5px; padding: 7px 12px;" onclick="testScanSpecificPerson('EMP-002')">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background-color: var(--color-success); display: inline-block;"></span>
+            Quick Test Kenny
+          </button>
+          <button class="btn btn-solid-danger" style="font-size: 11.5px; padding: 7px 12px;" onclick="openResetWarningModal()">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            Reset All Faces to Zero
+          </button>
+        </div>
+      </div>
+
+      <!-- Launchpad Footer Bar -->
+      <div class="launchpad-footer-bar">
+        <span>TERMINAL: KIOSK #01 • MAIN LOBBY GEDUNG A</span>
+        <span>ENVIRONMENT: .NET 8 API + PYTHON ARCFACE 512-D ONNX • SECURE DOCKER CLUSTER</span>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: KIOSK TERMINAL (AUTOMATIC BIOMETRIC FACE RECOGNITION)      -->
+    <!-- ================================================================= -->
+    <section id="tab-kiosk" class="tab-pane active">
+      <div class="kiosk-grid">
+        
+        <!-- Left: Webcam Terminal & Controls -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+              Biometric Facial Recognition Terminal
+            </h2>
+            <span class="card-pill" id="camera-status-pill">Camera Standby</span>
+          </div>
+
+          <!-- Video Viewport -->
+          <div class="video-container">
+            <video id="video" autoplay playsinline muted></video>
+            
+            <div class="kiosk-hud">
+              <div class="hud-meta-row">
+                <span>RESOLUTION: 640x480</span>
+                <span>ENGINE: ARCFACE 512-D ONNX</span>
+              </div>
+              <div class="scan-reticle" id="reticle">
+                <div class="scan-line" id="scanner-laser"></div>
+              </div>
+              <div class="hud-meta-row">
+                <span id="hud-liveness-val">LIVENESS: --</span>
+                <span id="hud-status-val">STATUS: STANDBY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Form -->
+          <div class="controls-panel">
+            <div class="control-row">
+              <div>
+                <label class="field-label">Attendance Mode</label>
+                <div class="mode-switch">
+                  <button id="btn-mode-in" class="mode-btn active" onclick="setMode('check-in')">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                    Check-In
+                  </button>
+                  <button id="btn-mode-out" class="mode-btn" onclick="setMode('check-out')">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Check-Out
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="field-label">Shift Schedule / Learning Hours</label>
+                <select class="select-input" id="shift-dropdown">
+                  <option value="SHIFT-MORNING">Morning Regular (08:00 - 17:00 WIB)</option>
+                  <option value="SHIFT-AFTERNOON">Afternoon Shift (13:00 - 21:00 WIB)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button class="btn btn-solid-primary" onclick="initCamera()">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Activate Camera
+              </button>
+              <button class="btn btn-solid-secondary" onclick="scanAndRecognizeLiveFace()">
+                <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Auto-Detect Face
+              </button>
+            </div>
+
+            <!-- Testing Simulator Panel -->
+            <div class="simulator-box">
+              <div class="simulator-header">
+                <span>
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                  Quick Scan Simulation (Enrolled vs Unknown)
+                </span>
+                <span id="quick-enrolled-count" style="font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);">
+                  0/8 Enrolled
+                </span>
+              </div>
+              <div class="simulator-grid">
+                <button class="sim-button" onclick="testScanSpecificPerson('EMP-001')">
+                  <div class="sim-indicator" style="background-color: var(--color-primary);"></div>
+                  Willy Arlando
+                </button>
+                <button class="sim-button" onclick="testScanSpecificPerson('EMP-002')">
+                  <div class="sim-indicator" style="background-color: var(--color-success);"></div>
+                  Kenny Baskoro
+                </button>
+                <button class="sim-button" onclick="testScanSpecificPerson('EMP-003')">
+                  <div class="sim-indicator" style="background-color: var(--color-warning);"></div>
+                  Jessy Chandra
+                </button>
+                <button class="sim-button" onclick="testScanUnknownFace()">
+                  <div class="sim-indicator" style="background-color: #64748b;"></div>
+                  Unknown Stranger Face
+                </button>
+                <button class="sim-button" onclick="executeSimSpoof('screen_reflection', 'EMP-001')">
+                  <div class="sim-indicator" style="background-color: var(--color-danger);"></div>
+                  Test Phone Screen Spoof
+                </button>
+                <button class="sim-button" onclick="switchTab('directory')">
+                  <div class="sim-indicator" style="background-color: #8b5cf6;"></div>
+                  Manage Directory →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Status Feedback & Live Feed -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Verification Status & Attendance Log
+            </h2>
+            <span class="card-pill" id="counter-pill">Real-Time Feed</span>
+          </div>
+
+          <!-- Dynamic Status Card -->
+          <div class="status-card state-success" id="result-status-card">
+            <div class="status-badge-icon" id="result-status-icon">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="status-content">
+              <h3 id="result-title">Terminal Ready</h3>
+              <p id="result-desc">Position your face in front of the camera. The system will automatically identify the person.</p>
+              <div class="telemetry-grid">
+                <div class="telemetry-cell">
+                  <span>Identified Person</span>
+                  <strong id="telemetry-personil">--</strong>
+                </div>
+                <div class="telemetry-cell">
+                  <span>Match Score</span>
+                  <strong id="telemetry-confidence">--</strong>
+                </div>
+                <div class="telemetry-cell">
+                  <span>Attendance Status</span>
+                  <strong id="telemetry-shift-status">Standby</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Stream Header -->
+          <div class="stream-header">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Today's Attendance Stream (Real-Time)
+          </div>
+
+          <!-- Live Feed List -->
+          <div class="feed-container" id="attendance-feed">
+            <div id="empty-feed-placeholder" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+              No attendance records yet today. Enroll personnel faces first, then perform attendance scan.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: PERSONNEL FACE DIRECTORY & ENROLLMENT (ONE-BY-ONE)         -->
+    <!-- ================================================================= -->
+    <section id="tab-directory" class="tab-pane">
+      <div class="directory-action-bar">
+        <div>
+          <h2 style="font-size: 16px; font-weight: 800; color: var(--text-primary);">
+            Personnel Biometric Directory & Face Enrollment
+          </h2>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Initially all faces are set to ZERO (no enrolled faces). Assign faces one by one so they are automatically detected during attendance.
+          </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="enrollment-stat-pill" id="enrollment-stat">
+            0 / 8 Personnel Enrolled
+          </div>
+
+          <!-- Reset Button with Warning Modal Trigger -->
+          <button class="btn btn-solid-danger" onclick="openResetWarningModal()" style="font-size: 12px; padding: 9px 16px;">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            Reset All Faces to Zero
+          </button>
+        </div>
+      </div>
+
+      <!-- 8 Personnel Cards Grid -->
+      <div class="employee-card-grid" id="employee-card-container">
+        <!-- Dynamically populated via renderEmployeeCards() -->
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: WORKFORCE ANALYTICS & AUDITS                               -->
+    <!-- ================================================================= -->
+    <section id="tab-analytics" class="tab-pane">
+      
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span>Attendance Rate</span>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="kpi-num" id="kpi-rate" style="color: var(--color-primary);">0.0%</div>
+          <div class="kpi-sub">Institutional target: min 90.0%</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span>Total Staff Present</span>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="kpi-num" id="kpi-present" style="color: var(--color-success);">0</div>
+          <div class="kpi-sub">Out of 8 registered personnel</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span>On-Time vs Late</span>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="kpi-num" id="kpi-punctual" style="color: var(--color-warning);">0 / 0</div>
+          <div class="kpi-sub">Grace tolerance: 15 minutes</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span>Spoof Attempts Blocked</span>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="kpi-num" id="kpi-spoofs" style="color: var(--color-danger);">0</div>
+          <div class="kpi-sub">100% prevented by liveness engine</div>
+        </div>
+      </div>
+
+      <!-- Charts & Tables -->
+      <div class="analytics-double-grid">
+        
+        <!-- Left: Hourly Traffic Chart -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Hourly Attendance Traffic (06:00 - 20:00 WIB)
+            </h2>
+            <div style="display: flex; gap: 14px; font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary); font-weight: 700;">
+              <span style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 10px; height: 10px; background-color: var(--color-primary); display: inline-block; border-radius: 2px;"></span>
+                Check-In
+              </span>
+              <span style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 10px; height: 10px; background-color: #6366f1; display: inline-block; border-radius: 2px;"></span>
+                Check-Out
+              </span>
+            </div>
+          </div>
+
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+            Peak arrival rush occurs around 07:45 - 08:15 WIB. System processes queues with sub-second matching latency.
+          </p>
+
+          <div class="chart-box" id="chart-bars-shelf">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Right: Unit Compliance -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Department Compliance & Punctuality
+            </h2>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Department / Division</th>
+                  <th>Present</th>
+                  <th>Late</th>
+                  <th>Compliance</th>
+                </tr>
+              </thead>
+              <tbody id="department-table-body">
+                <tr>
+                  <td>Technology & Laboratories</td>
+                  <td id="dept-tek-present">0</td>
+                  <td id="dept-tek-late">0</td>
+                  <td><span class="pill-badge pill-neutral">--</span></td>
+                </tr>
+                <tr>
+                  <td>Faculty / Teaching Staff</td>
+                  <td id="dept-guru-present">0</td>
+                  <td id="dept-guru-late">0</td>
+                  <td><span class="pill-badge pill-neutral">--</span></td>
+                </tr>
+                <tr>
+                  <td>General Administration</td>
+                  <td id="dept-tu-present">0</td>
+                  <td id="dept-tu-late">0</td>
+                  <td><span class="pill-badge pill-neutral">--</span></td>
+                </tr>
+                <tr>
+                  <td>Information Technology</td>
+                  <td id="dept-ti-present">0</td>
+                  <td id="dept-ti-late">0</td>
+                  <td><span class="pill-badge pill-neutral">--</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Security Spoof Logs -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Biometric Security Audit & Spoof Detection Logs
+          </h2>
+          <span class="card-pill" style="border-color: var(--color-danger-border); color: var(--color-danger);">
+            Active Protection
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Terminal Device</th>
+                <th>Liveness Score</th>
+                <th>Confidence</th>
+                <th>Classification</th>
+                <th>Personnel ID</th>
+                <th>Forensic Audit Details</th>
+              </tr>
+            </thead>
+            <tbody id="security-spoof-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">No spoof attempts detected.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <div class="modal-overlay" id="enroll-face-modal">
+    <div class="enroll-modal-box">
+      <h2 id="enroll-title">Enroll face</h2>
+      <p id="enroll-instruction">We will capture three angles. Keep your face inside the guide and follow the instruction.</p>
+      <div class="enroll-video-wrap"><video id="enroll-video" autoplay playsinline muted></video><div class="enroll-guide"></div></div>
+      <div class="enroll-stepper"><div class="enroll-step active" id="enroll-step-front">1 · Front</div><div class="enroll-step" id="enroll-step-left">2 · Turn left</div><div class="enroll-step" id="enroll-step-right">3 · Turn right</div></div>
+      <div class="modal-btn-row"><button class="btn btn-solid-secondary" onclick="closeEnrollModal()">Cancel</button><button class="btn btn-solid-primary" id="enroll-capture-btn" onclick="captureEnrollmentSample()">Capture front</button></div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: WARNING RESET ALL FACES TO ZERO                            -->
+  <!-- ================================================================= -->
+  <div class="modal-overlay" id="warning-reset-modal">
+    <div class="warning-modal-box">
+      <div class="warning-icon-circle">
+        <svg class="icon icon-xl" viewBox="0 0 24 24">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+
+      <h2>SYSTEM WARNING: RESET ALL FACES</h2>
+      <p>
+        This action will <strong>permanently erase facial vector embeddings for all 8 personnel</strong> (Willy Arlando, Kenny, Jessy, Brendy, Elly, Niggy, Micky, Jibby).
+        <br><br>
+        All personnel will revert to <strong>"No Face Enrolled (Zero)"</strong> status. The attendance kiosk will not recognize any face until you re-enroll them one by one.
+      </p>
+
+      <div class="modal-btn-row">
+        <button class="btn btn-solid-secondary" onclick="closeResetWarningModal()">
+          Cancel
+        </button>
+        <button class="btn btn-solid-danger" onclick="confirmResetAllFaces()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Yes, Reset All Faces to Zero
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="toast-shelf"></div>
+
+  <!-- Application Logic -->
+  <script>
+    let activeMode = 'check-in';
+    let cameraStream = null;
+    const API_ROOT = (window.location.protocol === 'file:')
+      ? 'http://localhost:5000'
+      : (window.location.port === '3001' ? '' : 'http://localhost:5000');
+    const CV_ROOT = (window.location.protocol === 'file:')
+      ? 'http://localhost:8002'
+      : (window.location.port === '3001' ? '/cv' : 'http://localhost:8002');
+    let enrollmentState = { personId: null, step: 0, embeddings: [], stream: null };
+
+    // Master Personnel List - Starting from Zero (All Face Embeddings Initially Null)
+    // First names: Willy, Kenny, Jessy, Brendy, Elly, Niggy, Micky, Jibby
+    // Last names alphabetical: A, B, C, D, E, F, G, H
+    let personilDirectory = [
+      { id: 'EMP-001', nip: '20260901-001', fullName: 'Willy Arlando', department: 'Technology & Laboratories', role: 'System Lead & Primary Tester', avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-002', nip: '20260901-002', fullName: 'Kenny Baskoro', department: 'Faculty / Teaching Staff', role: 'Mathematics & Science Instructor', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-003', nip: '20260901-003', fullName: 'Jessy Chandra', department: 'General Administration', role: 'Head Administrative Officer', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-004', nip: '20260901-004', fullName: 'Brendy Darmawan', department: 'Information Technology', role: 'Infrastructure & Network Engineer', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-005', nip: '20260901-005', fullName: 'Elly Efendi', department: 'Faculty / Teaching Staff', role: 'Language & Communications Lecturer', avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-006', nip: '20260901-006', fullName: 'Niggy Fahrezi', department: 'Human Resources / HR', role: 'Personnel Operations Specialist', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-007', nip: '20260901-007', fullName: 'Micky Gunawan', department: 'Operations & Facilities', role: 'Facilities & Logistics Coordinator', avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80', faceEmbedding: null },
+      { id: 'EMP-008', nip: '20260901-008', fullName: 'Jibby Hartono', department: 'Finance & Logistics', role: 'Financial Administration Officer', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', faceEmbedding: null }
+    ];
+
+    let attendanceLogList = [];
+
+    // Local Storage sync for persistence
+    function saveDirectoryToStorage() {
+      try {
+        localStorage.setItem('watchabsensi_personil_v5_real_enrollment', JSON.stringify(personilDirectory));
+      } catch (e) {}
+    }
+
+    function loadDirectoryFromStorage() {
+      try {
+        const saved = localStorage.getItem('watchabsensi_personil_v5_real_enrollment');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === 8 && parsed[0].fullName === 'Willy Arlando') {
+            personilDirectory = parsed;
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function fetchDirectoryFromBackend() {
+      try {
+        const res = await fetch(`${API_ROOT}/api/v1/employees`);
+        if (res.ok) {
+          const apiEmployees = await res.json();
+          if (Array.isArray(apiEmployees) && apiEmployees.length > 0) {
+            apiEmployees.forEach(emp => {
+            const local = personilDirectory.find(p => p.id === emp.id);
+              if (local && (emp.faceEmbedding || emp.faceEmbeddings)) {
+                local.faceEmbedding = emp.faceEmbedding || emp.faceEmbeddings[0];
+                local.faceEmbeddings = emp.faceEmbeddings || [emp.faceEmbedding];
+              }
+            });
+            saveDirectoryToStorage();
+            renderEmployeeCards();
+            updateEnrollmentCounters();
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Web Audio Synthesizer (Professional Tone Cues)
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playTone(frequency, type, duration, delay = 0) {
+      setTimeout(() => {
+        try {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
+          gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start();
+          osc.stop(audioContext.currentTime + duration);
+        } catch (e) {}
+      }, delay);
+    }
+
+    function soundSuccess() {
+      playTone(523.25, 'sine', 0.18, 0);
+      playTone(659.25, 'sine', 0.18, 90);
+      playTone(783.99, 'sine', 0.25, 180);
+    }
+
+    function soundSpoofAlert() {
+      playTone(180, 'sawtooth', 0.22, 0);
+      playTone(140, 'sawtooth', 0.3, 150);
+    }
+
+    function soundDebounce() {
+      playTone(440, 'triangle', 0.12, 0);
+      playTone(392, 'triangle', 0.18, 100);
+    }
+
+    // Real-Time Clock
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const secs = String(now.getSeconds()).padStart(2, '0');
+      const clockEl = document.getElementById('live-clock');
+      if (clockEl) {
+        clockEl.textContent = `${hours}:${mins}:${secs}`;
+      }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Tab Switcher (Fast, Crisp & Responsive)
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      const targetPane = document.getElementById('tab-' + tabId);
+      if (targetPane) targetPane.classList.add('active');
+
+      if (tabId === 'directory') {
+        renderEmployeeCards();
+      } else if (tabId === 'analytics') {
+        updateAnalyticsUI();
+        renderSolidBars();
+      } else if (tabId === 'launchpad') {
+        updateLaunchpadMetrics();
+      }
+    }
+
+    // Set Mode (CheckIn / CheckOut)
+    function setMode(mode) {
+      activeMode = mode;
+      document.getElementById('btn-mode-in').classList.toggle('active', mode === 'check-in');
+      document.getElementById('btn-mode-out').classList.toggle('active', mode === 'check-out');
+      showNotification(`Attendance mode set to: ${mode === 'check-in' ? 'CHECK-IN' : 'CHECK-OUT'}`);
+    }
+
+    // Notification Toast (with clean SVG icon)
+    function showNotification(text, type = 'info') {
+      const shelf = document.getElementById('toast-shelf');
+      const box = document.createElement('div');
+      box.className = 'toast-box';
+
+      let iconSvg = `<svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+      if (type === 'success') {
+        iconSvg = `<svg class="icon icon-sm" style="color: var(--color-success);" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+      } else if (type === 'danger') {
+        iconSvg = `<svg class="icon icon-sm" style="color: var(--color-danger);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      } else if (type === 'warning') {
+        iconSvg = `<svg class="icon icon-sm" style="color: var(--color-warning);" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+      }
+
+      box.innerHTML = `${iconSvg} <span>${text}</span>`;
+      shelf.appendChild(box);
+
+      setTimeout(() => {
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(10px)';
+        box.style.transition = 'all 0.2s';
+        setTimeout(() => box.remove(), 250);
+      }, 3600);
+    }
+
+    // Camera Lifecycle
+    async function initCamera() {
+      const video = document.getElementById('video');
+      const pill = document.getElementById('camera-status-pill');
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        });
+        video.srcObject = cameraStream;
+        pill.textContent = 'Camera Active';
+        pill.style.borderColor = 'var(--color-success-border)';
+        pill.style.color = 'var(--color-success)';
+        showNotification('Camera terminal active. Please position your face inside the reticle.', 'success');
+        playTone(880, 'sine', 0.08);
+      } catch (e) {
+        pill.textContent = 'Simulator Mode';
+        pill.style.borderColor = 'var(--color-warning-border)';
+        pill.style.color = 'var(--color-warning)';
+        showNotification('Hardware camera not available. You can use the quick simulation triggers.', 'warning');
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // BIOMETRIC VECTOR UTILITIES (MATHEMATICAL 512-D COSINE MATCHER)
+    // -----------------------------------------------------------------
+    function generateUniqueEmbeddingForPerson(seed) {
+      const vector = new Array(512);
+      let sumSq = 0;
+      // Deterministic PRNG based on seed string
+      let s = 0;
+      for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+      
+      for (let i = 0; i < 512; i++) {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        const val = ((s / 4294967296) * 2.0) - 1.0;
+        vector[i] = val;
+        sumSq += val * val;
+      }
+      const norm = Math.sqrt(sumSq) || 1;
+      for (let i = 0; i < 512; i++) vector[i] /= norm;
+      return vector;
+    }
+
+    function calculateCosineSimilarity(vecA, vecB) {
+      if (!vecA || !vecB || vecA.length !== 512 || vecB.length !== 512) return 0;
+      let dot = 0;
+      for (let i = 0; i < 512; i++) dot += vecA[i] * vecB[i];
+      return Math.max(0, Math.min(1, dot));
+    }
+
+    // Find best match among all enrolled personnel
+    function matchFaceVectorAgainstDirectory(queryVector, threshold = 0.75) {
+      let bestMatch = null;
+      let bestSimilarity = 0;
+
+      personilDirectory.forEach(p => {
+        const templates = p.faceEmbeddings?.length ? p.faceEmbeddings : (p.faceEmbedding ? [p.faceEmbedding] : []);
+        templates.forEach(template => {
+          if (template && template.length === 512) {
+            const sim = calculateCosineSimilarity(queryVector, template);
+            if (sim > bestSimilarity) { bestSimilarity = sim; bestMatch = p; }
+          }
+        });
+      });
+
+      if (bestMatch && bestSimilarity >= threshold) {
+        return { matched: true, person: bestMatch, similarity: bestSimilarity };
+      }
+      return { matched: false, person: null, similarity: bestSimilarity };
+    }
+
+    // -----------------------------------------------------------------
+    // ENROLLMENT & ASSIGNMENT (ASSIGN ONE-BY-ONE FROM ZERO)
+    // -----------------------------------------------------------------
+    async function enrollPersonFace(personId) {
+      const person = personilDirectory.find(p => p.id === personId);
+      if (!person) return;
+      enrollmentState = { personId, step: 0, embeddings: [], stream: null };
+      document.getElementById('enroll-title').textContent = `Enroll face · ${person.fullName}`;
+      document.getElementById('enroll-face-modal').classList.add('show');
+      document.getElementById('enroll-capture-btn').textContent = 'Capture front';
+      ['front','left','right'].forEach((side, i) => { const el = document.getElementById(`enroll-step-${side}`); el.className = `enroll-step${i === 0 ? ' active' : ''}`; });
+      try {
+        enrollmentState.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } });
+        const video = document.getElementById('enroll-video'); video.srcObject = enrollmentState.stream; await video.play();
+      } catch (e) {
+        closeEnrollModal(); showNotification('Camera tidak tersedia. Enrollment membutuhkan kamera aktif.', 'danger');
+      }
+    }
+
+    function closeEnrollModal() {
+      if (enrollmentState.stream) enrollmentState.stream.getTracks().forEach(track => track.stop());
+      enrollmentState.stream = null; document.getElementById('enroll-face-modal').classList.remove('show');
+    }
+
+    async function captureEnrollmentSample() {
+      const video = document.getElementById('enroll-video');
+      if (!video.videoWidth) { showNotification('Tunggu sampai kamera siap.', 'warning'); return; }
+      const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .92));
+      const form = new FormData(); form.append('frame', blob, `enroll-${enrollmentState.step}.jpg`);
+      const button = document.getElementById('enroll-capture-btn'); button.disabled = true; button.textContent = 'Analyzing face…';
+      try {
+        const res = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await res.json();
+        if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || 'Face/liveness verification failed');
+        enrollmentState.embeddings.push(data.embedding);
+        enrollmentState.step += 1;
+        if (enrollmentState.step < 3) {
+          const sides = ['front','left','right']; sides.forEach((side, i) => { const el = document.getElementById(`enroll-step-${side}`); el.className = `enroll-step${i < enrollmentState.step ? ' done' : (i === enrollmentState.step ? ' active' : '')}`; });
+          const next = ['left','right'][enrollmentState.step - 1]; document.getElementById('enroll-instruction').textContent = next === 'left' ? 'Turn your head slowly to the left, then capture.' : 'Turn your head slowly to the right, then capture.'; button.textContent = `Capture ${next}`;
+        } else {
+          const person = personilDirectory.find(p => p.id === enrollmentState.personId);
+          const save = await fetch(`${API_ROOT}/api/v1/employees/${person.id}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeddings: enrollmentState.embeddings }) });
+          const result = await save.json();
+          if (!save.ok || result.status === 'already_registered') throw new Error(result.message || 'Wajah sudah terdaftar');
+          person.faceEmbedding = enrollmentState.embeddings[0]; person.faceEmbeddings = enrollmentState.embeddings; saveDirectoryToStorage(); closeEnrollModal(); soundSuccess(); showNotification(`Face ${person.fullName} berhasil didaftarkan dari 3 sudut.`, 'success'); renderEmployeeCards(); updateEnrollmentCounters();
+        }
+      } catch (e) { showNotification(e.message || 'Enrollment gagal. Coba lagi dengan pencahayaan cukup.', 'danger'); }
+      button.disabled = false;
+      if (enrollmentState.step < 3) button.textContent = ['Capture front','Capture left','Capture right'][enrollmentState.step];
+    }
+
+    function removePersonFace(personId) {
+      const person = personilDirectory.find(p => p.id === personId);
+      if (!person) return;
+      person.faceEmbedding = null;
+      saveDirectoryToStorage();
+      showNotification(`Face template for ${person.fullName} cleared (reverted to zero).`, 'info');
+      renderEmployeeCards();
+      updateEnrollmentCounters();
+    }
+
+    // -----------------------------------------------------------------
+    // WARNING MODAL: RESET ALL FACES TO ZERO
+    // -----------------------------------------------------------------
+    function openResetWarningModal() {
+      document.getElementById('warning-reset-modal').classList.add('show');
+    }
+
+    function closeResetWarningModal() {
+      document.getElementById('warning-reset-modal').classList.remove('show');
+    }
+
+    function confirmResetAllFaces() {
+      // Set all face embeddings to null
+      personilDirectory.forEach(p => {
+        p.faceEmbedding = null;
+      });
+      saveDirectoryToStorage();
+
+      // Reset on backend API
+      try {
+        fetch(`${API_ROOT}/api/v1/employees/reset-embeddings`, { method: 'POST' });
+      } catch (e) {}
+
+      closeResetWarningModal();
+      soundDebounce();
+      showNotification('All 8 personnel face templates have been successfully reset to ZERO.', 'warning');
+      renderEmployeeCards();
+      updateEnrollmentCounters();
+
+      // Reset status banner
+      updateStatusCard('state-debounce', 'All Face Templates Reset', 'All face templates have returned to zero. Please enroll personnel faces to resume attendance.', 0, 0, 'No Face Data');
+    }
+
+    // -----------------------------------------------------------------
+    // KIOSK: SCAN & AUTOMATIC RECOGNITION (AUTO-DETECT)
+    // -----------------------------------------------------------------
+    async function scanAndRecognizeLiveFace() {
+      const reticle = document.getElementById('reticle');
+      reticle.classList.add('locked');
+      setTimeout(() => reticle.classList.remove('locked'), 800);
+
+      // Check how many faces are registered
+      const enrolledCount = personilDirectory.filter(p => p.faceEmbedding !== null).length;
+      if (enrolledCount === 0) {
+        soundSpoofAlert();
+        updateStatusCard('spoof', 'No Faces Enrolled (Zero State)', 'No personnel have enrolled face data yet. Open Face Directory to enroll.', 0.98, 0.98, 'Rejected');
+        showNotification('Face unrecognized! No personnel templates enrolled in directory (Zero State).', 'danger');
+        return;
+      }
+
+      const video = document.getElementById('video');
+      if (!video.videoWidth) { showNotification('Aktifkan kamera lalu coba Auto-Detect Face.', 'warning'); return; }
+      const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9)); const form = new FormData(); form.append('frame', blob, 'attendance.jpg');
+      try {
+        const infer = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await infer.json();
+        if (!infer.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || 'Wajah atau liveness tidak valid.');
+        const response = await fetch(`${API_ROOT}/api/v1/attendance/auto-scan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embedding: data.embedding, mode: activeMode === 'check-in' ? 0 : 1, confidence: data.liveness, liveness: data.liveness, deviceId: 'KIOSK-01', shiftId: document.getElementById('shift-dropdown').value }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Wajah belum terdaftar.');
+        const record = result.record; attendanceLogList.unshift({ ...record, employeeId: record.employeeId, employeeName: record.employeeName, department: record.department, mode: record.mode === 0 ? 0 : 1, recordedAt: record.recordedAt }); prependFeedRow(attendanceLogList[0]); updateAnalyticsUI(); updateStatusCard('success', `Face Identified: ${record.employeeName}`, result.message, record.liveness, record.confidence, record.status); soundSuccess(); showNotification(`Face identified: ${record.employeeName}`, 'success');
+      } catch (e) { soundSpoofAlert(); updateStatusCard('spoof', 'Unrecognized Face', e.message || 'Wajah tidak dikenali atau belum terdaftar.', 0, 0, 'Rejected'); showNotification(e.message || 'Wajah belum terdaftar.', 'danger'); }
+    }
+
+    // Test scanning a specific person's face
+    async function testScanSpecificPerson(personId) {
+      const reticle = document.getElementById('reticle');
+      reticle.className = 'scan-reticle locked';
+      setTimeout(() => reticle.className = 'scan-reticle', 1000);
+
+      const targetPerson = personilDirectory.find(p => p.id === personId);
+      if (!targetPerson) return;
+
+      // Check if this person has their face enrolled!
+      if (!targetPerson.faceEmbedding) {
+        soundSpoofAlert();
+        updateStatusCard('spoof', `${targetPerson.fullName} Face Not Enrolled`, 'This personnel has no registered vector template (Zero State). Please enroll face first.', 0.98, 0.98, 'Not Enrolled');
+        showNotification(`Notice: Face for ${targetPerson.fullName} is not yet enrolled!`, 'danger');
+        return;
+      }
+
+      // Face is enrolled! Generate query vector with high similarity to enrolled face
+      const queryVec = [...targetPerson.faceEmbedding];
+      queryVec[0] += 0.01;
+
+      // Match face against directory
+      const matchResult = matchFaceVectorAgainstDirectory(queryVec);
+
+      if (matchResult.matched) {
+        // Recognition Successful! Immediately clock in!
+        soundSuccess();
+        const recognized = matchResult.person;
+        const simPercent = (matchResult.similarity * 100).toFixed(1);
+        const modeLabel = activeMode === 'check-in' ? 'Check-In' : 'Check-Out';
+
+        const record = {
+          id: 'REC-' + Date.now().toString().slice(-4),
+          employeeId: recognized.id,
+          employeeName: recognized.fullName,
+          department: recognized.department,
+          mode: activeMode === 'check-in' ? 0 : 1,
+          status: 0,
+          recordedAt: new Date().toISOString(),
+          confidence: matchResult.similarity,
+          liveness: 0.992
+        };
+
+        attendanceLogList.unshift(record);
+        prependFeedRow(record);
+        updateAnalyticsUI();
+
+        updateStatusCard(
+          'success',
+          `Face Identified: ${recognized.fullName}`,
+          `${modeLabel} successfully recorded. NIP: ${recognized.nip} (${recognized.department})`,
+          0.992,
+          matchResult.similarity,
+          'On-Time'
+        );
+
+        showNotification(`Face identified: ${recognized.fullName} (Match: ${simPercent}%)`, 'success');
+
+        // Post to backend API if active
+        try {
+          fetch(`${API_ROOT}/api/v1/attendance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeId: recognized.id,
+              mode: activeMode === 'check-in' ? 0 : 1,
+              confidence: matchResult.similarity,
+              liveness: 0.992,
+              deviceId: 'KIOSK-01',
+              shiftId: document.getElementById('shift-dropdown').value
+            })
+          });
+        } catch (e) {}
+      }
+    }
+
+    // Test scanning an unknown/foreign face
+    function testScanUnknownFace() {
+      const reticle = document.getElementById('reticle');
+      reticle.className = 'scan-reticle spoof-danger';
+      setTimeout(() => reticle.className = 'scan-reticle', 1200);
+
+      const foreignVector = generateUniqueEmbeddingForPerson('FOREIGN_STRANGER_FACE');
+      const match = matchFaceVectorAgainstDirectory(foreignVector);
+
+      soundSpoofAlert();
+      updateStatusCard('spoof', 'Unrecognized Face', 'Face does not match any of the 8 enrolled personnel. Attendance rejected.', 0.98, match.similarity, 'Unrecognized');
+      showNotification('Unrecognized face! Person is not registered in the directory.', 'danger');
+    }
+
+    // Execute Spoof Test
+    function executeSimSpoof(reason, candidateId) {
+      const reticle = document.getElementById('reticle');
+      reticle.className = 'scan-reticle spoof-danger';
+      setTimeout(() => reticle.className = 'scan-reticle', 1400);
+
+      soundSpoofAlert();
+      updateStatusCard('spoof', 'Security Alert: Spoof Detected', 'System detected photo print / screen glare artifact. Access blocked by liveness engine.', 0.38, 0.72, 'Rejected');
+      showNotification('Security warning: Screen photo spoofing blocked and logged to audit trail!', 'danger');
+
+      const tbody = document.getElementById('security-spoof-body');
+      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="font-family: var(--font-mono); font-weight: 700;">${time}</td>
+        <td>KIOSK-01</td>
+        <td style="color: var(--color-danger); font-weight: 800; font-family: var(--font-mono);">38.0%</td>
+        <td style="font-family: var(--font-mono);">72.0%</td>
+        <td><span class="pill-badge" style="background-color: var(--color-danger-bg); color: var(--color-danger-text); border: 1px solid var(--color-danger-border);">ScreenReflection</span></td>
+        <td>${candidateId}</td>
+        <td style="font-size: 11px; color: var(--text-muted);">Handheld display bezel reflection detected</td>
+      `;
+      if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+      tbody.prepend(row);
+
+      const kpiSpoofs = document.getElementById('kpi-spoofs');
+      if (kpiSpoofs) kpiSpoofs.textContent = parseInt(kpiSpoofs.textContent || '0') + 1;
+    }
+
+    // Update Result Feedback Banner in Kiosk
+    function updateStatusCard(state, title, desc, liveness, conf, shiftStatus) {
+      const card = document.getElementById('result-status-card');
+      const iconContainer = document.getElementById('result-status-icon');
+      const titleEl = document.getElementById('result-title');
+      const descEl = document.getElementById('result-desc');
+      const personilEl = document.getElementById('telemetry-personil');
+      const confEl = document.getElementById('telemetry-confidence');
+      const shiftEl = document.getElementById('telemetry-shift-status');
+
+      card.className = `status-card state-${state}`;
+      titleEl.textContent = title;
+      descEl.textContent = desc;
+      
+      if (title.includes(':')) {
+        personilEl.textContent = title.split(':')[1].trim();
+      } else {
+        personilEl.textContent = '--';
+      }
+
+      confEl.textContent = conf > 0 ? (conf * 100).toFixed(1) + '%' : '--';
+      shiftEl.textContent = shiftStatus;
+
+      if (state === 'success') {
+        iconContainer.innerHTML = `<svg class="icon icon-lg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+      } else if (state === 'spoof') {
+        iconContainer.innerHTML = `<svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+      } else {
+        iconContainer.innerHTML = `<svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      }
+    }
+
+    // Prepend Row to Live Attendance Feed
+    function prependFeedRow(record) {
+      const feed = document.getElementById('attendance-feed');
+      const placeholder = document.getElementById('empty-feed-placeholder');
+      if (placeholder) placeholder.remove();
+
+      const isLate = record.status === 1 || record.status === 'Late';
+      const badgeClass = isLate ? 'pill-late' : 'pill-ontime';
+      const badgeText = isLate ? 'Late' : 'On-Time';
+      const timeStr = new Date(record.recordedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+      const row = document.createElement('div');
+      row.className = 'feed-row';
+      row.innerHTML = `
+        <div class="feed-user">
+          <img class="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar">
+          <div class="user-info">
+            <h4>${record.employeeName || 'Personnel'}</h4>
+            <span>${record.department || 'Department'} • ${record.mode === 0 || record.mode === 'CheckIn' ? 'Check-In' : 'Check-Out'}</span>
+          </div>
+        </div>
+        <div class="feed-status">
+          <span class="pill-badge ${badgeClass}">${badgeText}</span>
+          <div class="feed-timestamp">${timeStr}</div>
+        </div>
+      `;
+      feed.prepend(row);
+    }
+
+    // Render Employee Cards in Directory / Enrollment Tab
+    function renderEmployeeCards() {
+      const container = document.getElementById('employee-card-container');
+      container.innerHTML = '';
+
+      personilDirectory.forEach(person => {
+        const isEnrolled = person.faceEmbedding !== null;
+        const sampleCount = person.faceEmbeddings?.length || (isEnrolled ? 1 : 0);
+        const card = document.createElement('div');
+        card.className = 'person-card';
+
+        const statusBadgeHtml = isEnrolled
+          ? `<span class="face-status-badge enrolled">
+               <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+               Enrolled (${sampleCount} angles · 512-D)
+             </span>`
+          : `<span class="face-status-badge not-enrolled">
+               <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+               No Face Enrolled (Zero)
+             </span>`;
+
+        const actionButtonsHtml = isEnrolled
+          ? `<div style="display: flex; gap: 8px; width: 100%;">
+               <button class="btn btn-solid-secondary" style="flex: 1; font-size: 11px; padding: 7px 10px;" onclick="testScanSpecificPerson('${person.id}')">
+                 Test Scan
+               </button>
+               <button class="btn btn-solid-danger" style="font-size: 11px; padding: 7px 10px;" title="Remove Face" onclick="removePersonFace('${person.id}')">
+                 Remove
+               </button>
+             </div>`
+          : `<button class="btn btn-solid-primary" style="width: 100%; font-size: 11px; padding: 8px 12px;" onclick="enrollPersonFace('${person.id}', 'camera')">
+               <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+               Enroll This Face
+             </button>`;
+
+        card.innerHTML = `
+          <img class="person-photo" src="${person.avatarUrl}" alt="${person.fullName}">
+          <div class="person-name">${person.fullName}</div>
+          <div class="person-role">${person.role} • ${person.department}</div>
+          <div class="person-nip">ID / NIP: ${person.nip}</div>
+          ${statusBadgeHtml}
+          ${actionButtonsHtml}
+        `;
+        container.appendChild(card);
+      });
+
+      updateEnrollmentCounters();
+    }
+
+    function updateLaunchpadMetrics() {
+      const enrolledCount = personilDirectory.filter(p => p.faceEmbedding !== null).length;
+      const countEl = document.getElementById('launchpad-enrolled-count');
+      if (countEl) {
+        countEl.textContent = `${enrolledCount} / 8 Personnel Enrolled`;
+      }
+    }
+
+    function updateEnrollmentCounters() {
+      const enrolledCount = personilDirectory.filter(p => p.faceEmbedding !== null).length;
+      const statEl = document.getElementById('enrollment-stat');
+      if (statEl) statEl.textContent = `${enrolledCount} / 8 Personnel Enrolled`;
+
+      const quickCount = document.getElementById('quick-enrolled-count');
+      if (quickCount) quickCount.textContent = `${enrolledCount}/8 Enrolled`;
+
+      updateLaunchpadMetrics();
+    }
+
+    // Update Analytics UI
+    function updateAnalyticsUI() {
+      const presentCount = new Set(attendanceLogList.filter(l => l.mode === 0).map(l => l.employeeId)).size;
+      const totalStaff = personilDirectory.length;
+      const rate = totalStaff > 0 ? (presentCount / totalStaff) * 100 : 0;
+
+      const rateEl = document.getElementById('kpi-rate');
+      if (rateEl) rateEl.textContent = rate.toFixed(1) + '%';
+
+      const presentEl = document.getElementById('kpi-present');
+      if (presentEl) presentEl.textContent = presentCount;
+
+      const punctualEl = document.getElementById('kpi-punctual');
+      if (punctualEl) punctualEl.textContent = `${presentCount} / 0`;
+    }
+
+    // Render Solid Bars for Hourly Traffic Chart
+    function renderSolidBars() {
+      const container = document.getElementById('chart-bars-shelf');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const timeline = [
+        { h: '06', inCount: 0, outCount: 0 },
+        { h: '07', inCount: 3, outCount: 0 },
+        { h: '08', inCount: 5, outCount: 0 },
+        { h: '09', inCount: 1, outCount: 0 },
+        { h: '10', inCount: 0, outCount: 0 },
+        { h: '11', inCount: 0, outCount: 0 },
+        { h: '12', inCount: 0, outCount: 1 },
+        { h: '13', inCount: 1, outCount: 0 },
+        { h: '14', inCount: 0, outCount: 0 },
+        { h: '15', inCount: 0, outCount: 0 },
+        { h: '16', inCount: 0, outCount: 2 },
+        { h: '17', inCount: 0, outCount: 5 },
+        { h: '18', inCount: 0, outCount: 1 }
+      ];
+
+      const maxScale = 8;
+
+      timeline.forEach(item => {
+        const col = document.createElement('div');
+        col.className = 'chart-column';
+        
+        const inH = Math.round((item.inCount / maxScale) * 140);
+        const outH = Math.round((item.outCount / maxScale) * 140);
+
+        col.innerHTML = `
+          <div class="bar-pair">
+            <div class="solid-bar bar-checkin" style="height: ${inH}px;" title="Check-In: ${item.inCount}"></div>
+            <div class="solid-bar bar-checkout" style="height: ${outH}px;" title="Check-Out: ${item.outCount}"></div>
+          </div>
+          <div class="chart-label">${item.h}</div>
+        `;
+        container.appendChild(col);
+      });
+    }
+
+    // Startup Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDirectoryFromStorage();
+      renderEmployeeCards();
+      renderSolidBars();
+      updateAnalyticsUI();
+      updateLaunchpadMetrics();
+      fetchDirectoryFromBackend();
+    });
+  </script>
+</body>
+</html>

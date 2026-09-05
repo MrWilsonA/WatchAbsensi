@@ -1,1 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include="../WatchAbsensi.Domain/WatchAbsensi.Domain.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WatchAbsensi.Domain/WatchAbsensi.Domain.csproj" />
+    <ProjectReference Include="../WatchAbsensi.Application/WatchAbsensi.Application.csproj" />
+  </ItemGroup>
+</Project>

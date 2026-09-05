@@ -1,26 +1,73 @@
 services:
   postgres-db:
     image: pgvector/pgvector:pg16
+    container_name: watchabsensi_db
     environment:
       POSTGRES_DB: ${DB_NAME:-watchabsensi}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports:
+      - "${DB_PORT:-5435}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    container_name: watchabsensi_redis
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
   cv-engine:
-    build: {context: ./src/cv-engine-python, dockerfile: ../../docker/cv-engine/Dockerfile}
-    ports: ["8002:8002"]
-    depends_on: [postgres-db, redis]
+    build:
+      context: ./src/cv-engine-python
+      dockerfile: ../../docker/cv-engine/Dockerfile
+    container_name: watchabsensi_cv
+    ports:
+      - "${CV_PORT:-8002}:8002"
+    environment:
+      - PORT=8002
+      - LIVENESS_THRESHOLD=${LIVENESS_THRESHOLD:-0.80}
+      - CONFIDENCE_THRESHOLD=${CONFIDENCE_THRESHOLD:-0.75}
+    volumes:
+      - ./src/cv-engine-python:/app
+    depends_on:
+      - postgres-db
+      - redis
+    restart: unless-stopped
+
   dotnet-api:
-    build: {context: ./src/backend-dotnet, dockerfile: ../../docker/dotnet-api/Dockerfile}
-    ports: ["5000:8080"]
-    depends_on: [postgres-db, redis, cv-engine]
+    build:
+      context: ./src/backend-dotnet
+      dockerfile: ../../docker/dotnet-api/Dockerfile
+    container_name: watchabsensi_api
+    ports:
+      - "${API_PORT:-5000}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Services__CvEngineUrl=http://cv-engine:8002
+    depends_on:
+      - postgres-db
+      - redis
+      - cv-engine
+    restart: unless-stopped
+
   frontend:
     image: nginx:alpine
-    ports: ["3000:80"]
-    volumes: ["./src/frontend-client:/usr/share/nginx/html:ro"]
-    depends_on: [cv-engine, dotnet-api]
-volumes: {pgdata: {}}
+    container_name: watchabsensi_web
+    ports:
+      - "${FRONTEND_PORT:-3001}:80"
+    volumes:
+      - ./src/frontend-client:/usr/share/nginx/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - cv-engine
+      - dotnet-api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

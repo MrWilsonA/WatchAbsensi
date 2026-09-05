@@ -1,1 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><InvariantGlobalization>true</InvariantGlobalization></PropertyGroup><ItemGroup><ProjectReference Include="../WatchAbsensi.Domain/WatchAbsensi.Domain.csproj" /><ProjectReference Include="../WatchAbsensi.Application/WatchAbsensi.Application.csproj" /><ProjectReference Include="../WatchAbsensi.Infrastructure/WatchAbsensi.Infrastructure.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WatchAbsensi.Domain/WatchAbsensi.Domain.csproj" />
+    <ProjectReference Include="../WatchAbsensi.Application/WatchAbsensi.Application.csproj" />
+    <ProjectReference Include="../WatchAbsensi.Infrastructure/WatchAbsensi.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
