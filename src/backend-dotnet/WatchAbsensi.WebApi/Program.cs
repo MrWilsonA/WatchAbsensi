@@ -123,6 +123,16 @@ app.MapPost("/api/v1/employees/reset-embeddings", (IAttendanceStore store, IAnti
 .WithName("ResetAllEmployeeEmbeddings")
 .WithTags("Employees");
 
+app.MapDelete("/api/v1/employees/{id}/enroll", (string id, IAttendanceStore store) =>
+{
+    var employee = store.GetEmployeeById(id);
+    if (employee is null) return Results.NotFound(new { success = false, message = $"Personnel with ID '{id}' was not found." });
+    store.UpdateEmployeeEmbeddings(id, null);
+    return Results.Ok(new { success = true, status = "cleared", employeeId = id, message = $"Face templates for {employee.FullName} cleared." });
+})
+.WithName("ClearEmployeeFaceEnrollment")
+.WithTags("Employees");
+
 // --- Shift Endpoints ---
 app.MapGet("/api/v1/shifts", (IAttendanceStore store) => Results.Ok(store.Shifts))
 .WithName("GetShifts")

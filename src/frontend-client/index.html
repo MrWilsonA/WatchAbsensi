@@ -2283,7 +2283,9 @@
       const person = personilDirectory.find(p => p.id === personId);
       if (!person) return;
       person.faceEmbedding = null;
+      person.faceEmbeddings = null;
       saveDirectoryToStorage();
+      fetch(`${API_ROOT}/api/v1/employees/${personId}/enroll`, { method: 'DELETE' }).catch(() => {});
       showNotification(`Face template for ${person.fullName} cleared (reverted to zero).`, 'info');
       renderEmployeeCards();
       updateEnrollmentCounters();
