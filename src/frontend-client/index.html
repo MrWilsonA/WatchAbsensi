@@ -1127,6 +1127,7 @@
     .enroll-step { flex: 1; padding: 9px; border-radius: 8px; background: var(--bg-surface); color: var(--text-muted); text-align: center; font-size: 11px; font-weight: 800; }
     .enroll-step.active { background: #dbeafe; color: var(--color-primary); }
     .enroll-step.done { background: var(--color-success-bg); color: var(--color-success-text); }
+    .enroll-countdown { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 72px; font-weight: 800; text-shadow: 0 3px 12px rgba(0,0,0,.45); pointer-events: none; }
 
     /* 1-Page Launchpad Portal Styles */
     .launchpad-hero {
@@ -1940,10 +1941,10 @@
   <div class="modal-overlay" id="enroll-face-modal">
     <div class="enroll-modal-box">
       <h2 id="enroll-title">Enroll face</h2>
-      <p id="enroll-instruction">We will capture three angles. Keep your face inside the guide and follow the instruction.</p>
-      <div class="enroll-video-wrap"><video id="enroll-video" autoplay playsinline muted></video><div class="enroll-guide"></div></div>
+      <p id="enroll-instruction">We will capture three angles automatically. Keep your face inside the guide and follow the instruction.</p>
+      <div class="enroll-video-wrap"><video id="enroll-video" autoplay playsinline muted></video><div class="enroll-guide"></div><div class="enroll-countdown" id="enroll-countdown"></div></div>
       <div class="enroll-stepper"><div class="enroll-step active" id="enroll-step-front">1 · Front</div><div class="enroll-step" id="enroll-step-left">2 · Turn left</div><div class="enroll-step" id="enroll-step-right">3 · Turn right</div></div>
-      <div class="modal-btn-row"><button class="btn btn-solid-secondary" onclick="closeEnrollModal()">Cancel</button><button class="btn btn-solid-primary" id="enroll-capture-btn" onclick="captureEnrollmentSample()">Capture front</button></div>
+      <div class="modal-btn-row"><button class="btn btn-solid-secondary" onclick="closeEnrollModal()">Cancel</button><button class="btn btn-solid-primary" id="enroll-capture-btn" disabled>Preparing automatic capture…</button></div>
     </div>
   </div>
 
@@ -1992,7 +1993,7 @@
     const CV_ROOT = (window.location.protocol === 'file:')
       ? 'http://localhost:8002'
       : (window.location.port === '3001' ? '/cv' : 'http://localhost:8002');
-    let enrollmentState = { personId: null, step: 0, embeddings: [], stream: null };
+    let enrollmentState = { personId: null, step: 0, embeddings: [], stream: null, timer: null, busy: false };
 
     // Master Personnel List - Starting from Zero (All Face Embeddings Initially Null)
     // First names: Willy, Kenny, Jessy, Brendy, Elly, Niggy, Micky, Jibby
@@ -2233,40 +2234,62 @@
     async function enrollPersonFace(personId) {
       const person = personilDirectory.find(p => p.id === personId);
       if (!person) return;
-      enrollmentState = { personId, step: 0, embeddings: [], stream: null };
+      enrollmentState = { personId, step: 0, embeddings: [], stream: null, timer: null, busy: false };
       document.getElementById('enroll-title').textContent = `Enroll face · ${person.fullName}`;
       document.getElementById('enroll-face-modal').classList.add('show');
-      document.getElementById('enroll-capture-btn').textContent = 'Capture front';
+      document.getElementById('enroll-capture-btn').textContent = 'Preparing automatic capture…';
+      document.getElementById('enroll-countdown').textContent = '';
       ['front','left','right'].forEach((side, i) => { const el = document.getElementById(`enroll-step-${side}`); el.className = `enroll-step${i === 0 ? ' active' : ''}`; });
       try {
         enrollmentState.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } });
         const video = document.getElementById('enroll-video'); video.srcObject = enrollmentState.stream; await video.play();
+        scheduleEnrollmentCapture(2);
       } catch (e) {
         closeEnrollModal(); showNotification('Camera tidak tersedia. Enrollment membutuhkan kamera aktif.', 'danger');
       }
     }
 
     function closeEnrollModal() {
+      if (enrollmentState.timer) { clearTimeout(enrollmentState.timer); enrollmentState.timer = null; }
       if (enrollmentState.stream) enrollmentState.stream.getTracks().forEach(track => track.stop());
       enrollmentState.stream = null; document.getElementById('enroll-face-modal').classList.remove('show');
     }
 
+    function scheduleEnrollmentCapture(delay = 3) {
+      if (!enrollmentState.stream || enrollmentState.busy || enrollmentState.step >= 3) return;
+      const countdown = document.getElementById('enroll-countdown');
+      const button = document.getElementById('enroll-capture-btn');
+      const side = ['front', 'left', 'right'][enrollmentState.step];
+      document.getElementById('enroll-instruction').textContent = enrollmentState.step === 0 ? 'Look straight at the camera. Capture starts automatically.' : side === 'left' ? 'Turn your head slowly to the left. Capture starts automatically.' : 'Turn your head slowly to the right. Capture starts automatically.';
+      button.textContent = `Auto-capture ${side} in ${delay}s`;
+      countdown.textContent = delay > 0 ? delay : '';
+      if (delay > 0) {
+        enrollmentState.timer = setTimeout(() => scheduleEnrollmentCapture(delay - 1), 1000);
+      } else {
+        enrollmentState.timer = setTimeout(() => captureEnrollmentSample(), 200);
+      }
+    }
+
     async function captureEnrollmentSample() {
+      if (enrollmentState.busy || enrollmentState.step >= 3) return;
+      enrollmentState.busy = true;
       const video = document.getElementById('enroll-video');
-      if (!video.videoWidth) { showNotification('Tunggu sampai kamera siap.', 'warning'); return; }
+      if (!video.videoWidth) { enrollmentState.busy = false; scheduleEnrollmentCapture(2); return; }
       const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .92));
       const form = new FormData(); form.append('frame', blob, `enroll-${enrollmentState.step}.jpg`);
-      const button = document.getElementById('enroll-capture-btn'); button.disabled = true; button.textContent = 'Analyzing face…';
+      const button = document.getElementById('enroll-capture-btn'); button.disabled = true; button.textContent = 'Verifying face…'; document.getElementById('enroll-countdown').textContent = '';
+      let captureSucceeded = false;
       try {
         const res = await fetch(`${CV_ROOT}/v1/inference`, { method: 'POST', body: form }); const data = await res.json();
         if (!res.ok || !data.face_detected || !data.is_live || !Array.isArray(data.embedding)) throw new Error(data.message || 'Face/liveness verification failed');
         enrollmentState.embeddings.push(data.embedding);
         enrollmentState.step += 1;
+        captureSucceeded = true;
         if (enrollmentState.step < 3) {
           const sides = ['front','left','right']; sides.forEach((side, i) => { const el = document.getElementById(`enroll-step-${side}`); el.className = `enroll-step${i < enrollmentState.step ? ' done' : (i === enrollmentState.step ? ' active' : '')}`; });
-          const next = ['left','right'][enrollmentState.step - 1]; document.getElementById('enroll-instruction').textContent = next === 'left' ? 'Turn your head slowly to the left, then capture.' : 'Turn your head slowly to the right, then capture.'; button.textContent = `Capture ${next}`;
+          const next = ['left','right'][enrollmentState.step - 1]; document.getElementById('enroll-instruction').textContent = next === 'left' ? 'Turn your head slowly to the left. Capture will happen automatically.' : 'Turn your head slowly to the right. Capture will happen automatically.'; button.disabled = true;
         } else {
           const person = personilDirectory.find(p => p.id === enrollmentState.personId);
           const save = await fetch(`${API_ROOT}/api/v1/employees/${person.id}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeddings: enrollmentState.embeddings }) });
@@ -2275,8 +2298,8 @@
           person.faceEmbedding = enrollmentState.embeddings[0]; person.faceEmbeddings = enrollmentState.embeddings; saveDirectoryToStorage(); closeEnrollModal(); soundSuccess(); showNotification(`Face ${person.fullName} berhasil didaftarkan dari 3 sudut.`, 'success'); renderEmployeeCards(); updateEnrollmentCounters();
         }
       } catch (e) { showNotification(e.message || 'Enrollment gagal. Coba lagi dengan pencahayaan cukup.', 'danger'); }
-      button.disabled = false;
-      if (enrollmentState.step < 3) button.textContent = ['Capture front','Capture left','Capture right'][enrollmentState.step];
+      enrollmentState.busy = false;
+      if (enrollmentState.step < 3) { button.disabled = true; scheduleEnrollmentCapture(captureSucceeded ? 3 : 2); }
     }
 
     function removePersonFace(personId) {
